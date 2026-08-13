@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem PBD Asas Sains Komputer (ASK)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for Dashboard Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+    <nav class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-700 p-2 rounded-lg">
+                        <i class="fa-solid fa-graduation-cap text-xl text-yellow-300"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-wide block">Sistem PBD ASK KSSM</span>
+                        <span class="text-xs text-indigo-200">Pentaksiran Bilik Darjah Asas Sains Komputer</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="nav-user-info" class="hidden sm:flex items-center space-x-2 bg-indigo-800 px-3 py-1.5 rounded-full text-sm">
+                        <i class="fa-solid fa-user-tie text-yellow-300"></i>
+                        <span id="nav-teacher-name">Cikgu</span>
+                    </div>
+                    <button onclick="logoutTeacher()" id="btn-logout" class="hidden bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition duration-200 flex items-center space-x-1">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Log Keluar</span>
+                    </button>
+                    <button onclick="openLoginModal()" id="btn-login-nav" class="bg-yellow-400 hover:bg-yellow-500 text-indigo-950 px-4 py-2 rounded-lg text-sm font-semibold transition duration-200 flex items-center space-x-1">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        <span>Log Masuk / Daftar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="main-content">
+        
+        <!-- Welcome Banner -->
+        <div class="bg-gradient-to-r from-indigo-800 to-blue-700 text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-xl flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-2">Portal Pengurusan & Pelaporan PBD ASK</h1>
+                <p class="text-indigo-100 max-w-2xl text-sm sm:text-base">
+                    Sistem bersepadu merangkumi rujukan DSKP KSSM Tingkatan 1, 2, dan 3, pengurusan kelas, perekodan Tahap Penguasaan (TP) mengikut Standard Kandungan, serta penjanaan borang transit profesional.
+                </p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20 text-center min-w-[200px]">
+                <div class="text-xs uppercase tracking-wider text-indigo-200 font-semibold">Jumlah Murid Dinilai</div>
+                <div class="text-3xl font-extrabold text-yellow-300 mt-1" id="stats-total-students">0</div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 mb-6 space-x-4 overflow-x-auto">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 px-5 font-semibold text-indigo-700 border-b-2 border-indigo-700 text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Laman Utama (Statistik)</span>
+            </button>
+            <button onclick="switchTab('classes')" id="tab-classes" class="py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <span>Pengurusan Kelas & Murid</span>
+            </button>
+            <button onclick="switchTab('dskp')" id="tab-dskp" class="py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-book-open"></i>
+                <span>Semakan DSKP & TP</span>
+            </button>
+        </div>
+
+        <div id="view-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4">
+                    <div class="bg-blue-100 text-blue-600 p-4 rounded-2xl text-2xl">
+                        <i class="fa-solid fa-1"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Tingkatan 1</div>
+                        <div class="text-2xl font-bold text-gray-900 mt-1" id="stat-f1-count">0 Kelas</div>
+                        <div class="text-xs text-blue-600 font-semibold mt-1"><span id="stat-f1-students">0</span> Murid berdaftar</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4">
+                    <div class="bg-emerald-100 text-emerald-600 p-4 rounded-2xl text-2xl">
+                        <i class="fa-solid fa-2"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Tingkatan 2</div>
+                        <div class="text-2xl font-bold text-gray-900 mt-1" id="stat-f2-count">0 Kelas</div>
+                        <div class="text-xs text-emerald-600 font-semibold mt-1"><span id="stat-f2-students">0</span> Murid berdaftar</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4">
+                    <div class="bg-purple-100 text-purple-600 p-4 rounded-2xl text-2xl">
+                        <i class="fa-solid fa-3"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Tingkatan 3</div>
+                        <div class="text-2xl font-bold text-gray-900 mt-1" id="stat-f3-count">0 Kelas</div>
+                        <div class="text-xs text-purple-600 font-semibold mt-1"><span id="stat-f3-students">0</span> Murid berdaftar</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-column text-indigo-600"></i>
+                        <span>Taburan Bilangan Murid Mengikut Tingkatan</span>
+                    </h3>
+                    <div class="h-64 flex justify-center items-center">
+                        <canvas id="studentBarChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-pie text-indigo-600"></i>
+                        <span>Pecahan Tahap Penguasaan Keseluruhan (TP)</span>
+                    </h3>
+                    <div class="h-64 flex justify-center items-center">
+                        <canvas id="tpPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-classes" class="hidden space-y-6">
+            <div id="teacher-lock-notice" class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-xl text-amber-800 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                    <div>
+                        <span class="font-bold">Sila Log Masuk Terlebih Dahulu!</span>
+                        <p class="text-sm">Anda perlu mendaftar atau log masuk sebagai guru untuk menambah kelas dan merekod PBD murid.</p>
+                    </div>
+                </div>
+                <button onclick="openLoginModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shadow">
+                    Log Masuk Sekarang
+                </button>
+            </div>
+
+            <div id="teacher-action-panel" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Senarai Kelas Anda</h2>
+                        <p class="text-sm text-gray-500">Pilih kelas untuk menguruskan senarai murid dan kemas kini Tahap Penguasaan (TP).</p>
+                    </div>
+                    <button onclick="openAddClassModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Daftar Kelas Baharu</span>
+                    </button>
+                </div>
+
+                <div id="classes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dynamic classes injected here -->
+                </div>
+            </div>
+
+            <div id="class-detail-view" class="hidden space-y-6">
+                <button onclick="backToClasses()" class="inline-flex items-center space-x-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Kembali ke Senarai Kelas</span>
+                </button>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div class="flex items-center space-x-3">
+                            <h2 id="detail-class-name" class="text-2xl font-bold text-gray-900">Kelas 1 Bestari</h2>
+                            <span id="detail-class-form-badge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full">Tingkatan 1</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Guru Pengajar: <span id="detail-teacher-name" class="font-semibold text-gray-700">-</span></p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openAddStudentModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Tambah Murid</span>
+                        </button>
+                        <button onclick="openBulkStudentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2">
+                            <i class="fa-solid fa-users-rectangle"></i>
+                            <span>Tambah Murid Pukal</span>
+                        </button>
+                        <button onclick="triggerPrint()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 shadow">
+                            <i class="fa-solid fa-print"></i>
+                            <span>Cetak Borang Transit</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-gray-800 flex items-center space-x-2">
+                            <i class="fa-solid fa-users text-indigo-600"></i>
+                            <span>Senarai Murid & Perekodan TP</span>
+                        </h3>
+                        <span id="student-count-badge" class="text-xs bg-gray-200 text-gray-700 font-semibold px-2.5 py-1 rounded-full">0 Murid</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="students-table">
+                            <!-- Dynamic Table Header & Body -->
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-dskp" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Rujukan Dokumen Standard Kurikulum & Pentaksiran (DSKP)</h2>
+                    <p class="text-sm text-gray-500">Semak Standard Kandungan, Standard Pembelajaran, dan Tafsiran Tahap Penguasaan (TP) mengikut tingkatan.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-semibold text-gray-700">Pilih Tingkatan:</label>
+                    <select id="dskp-form-select" onchange="renderDskpView()" class="border border-gray-300 rounded-xl px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="1">Tingkatan 1</option>
+                        <option value="2">Tingkatan 2</option>
+                        <option value="3">Tingkatan 3</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="dskp-content-container" class="space-y-4">
+                <!-- Dynamic DSKP Cards -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modals (Login, Add Class, Add Student, Bulk Student, TP, Alert) remain exactly the same visually -->
+    <div id="modal-login" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-user-lock text-indigo-600"></i>
+                    <span>Log Masuk / Pendaftaran Guru</span>
+                </h3>
+                <button onclick="closeModal('modal-login')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleTeacherLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Penuh Guru</label>
+                    <input type="text" id="login-teacher-name" required placeholder="Cth: Cikgu Ahmad bin Ali" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ID Pengguna / Emel</label>
+                    <input type="text" id="login-teacher-id" required placeholder="Cth: G001 atau emel@moe.edu.my" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
+                    Masuk ke Sistem
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-class" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-chalkboard text-indigo-600"></i>
+                    <span>Daftar Kelas Baharu ASK</span>
+                </h3>
+                <button onclick="closeModal('modal-class')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddClass(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Kelas</label>
+                    <input type="text" id="input-class-name" required placeholder="Cth: 1 Bestari, 2 Murni" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tingkatan</label>
+                    <select id="input-class-form" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="1">Tingkatan 1</option>
+                        <option value="2">Tingkatan 2</option>
+                        <option value="3">Tingkatan 3</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
+                    Simpan Kelas
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-student" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus text-indigo-600"></i>
+                    <span>Tambah Maklumat Murid</span>
+                </h3>
+                <button onclick="closeModal('modal-student')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddStudent(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Penuh Murid</label>
+                    <input type="text" id="input-student-name" required placeholder="Cth: Muhammad Amin bin Zulkifli" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombor Kad Pengenalan (IC)</label>
+                    <input type="text" id="input-student-ic" required placeholder="Cth: 100512-04-1234" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Kaum</label>
+                        <select id="input-student-race" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="Melayu">Melayu</option>
+                            <option value="Cina">Cina</option>
+                            <option value="India">India</option>
+                            <option value="Lain-lain">Lain-lain</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jantina</label>
+                        <select id="input-student-gender" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="L">Lelaki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
+                    Tambah Murid
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-bulk" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-users-rectangle text-indigo-600"></i>
+                    <span>Tambah Murid Secara Pukal</span>
+                </h3>
+                <button onclick="closeModal('modal-bulk')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-xs text-gray-600 leading-relaxed">
+                    Salin terus dari <b>Excel</b> atau gunakan koma <code class="bg-gray-100 p-1 rounded text-indigo-700 font-mono">Nama, IC, Kaum, Jantina</code> (Satu murid setiap baris).
+                </p>
+                <textarea id="textarea-bulk" rows="6" placeholder="Ahmad bin Ali, 100101-01-1234, Melayu, L&#10;Siti binti Abu, 100202-02-5678, Melayu, P" class="w-full border border-gray-300 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                <button onclick="handleBulkStudents()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
+                    Import Senarai Murid
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-tp" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <div>
+                    <h3 id="tp-modal-title" class="text-lg font-bold text-gray-900">Tetapkan TP Murid</h3>
+                    <p id="tp-modal-subtitle" class="text-xs text-indigo-600 font-semibold mt-0.5">Standard Kandungan</p>
+                </div>
+                <button onclick="closeModal('modal-tp')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="tp-options-container" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <!-- Dynamic TP buttons with descriptions -->
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-alert" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div id="alert-icon" class="text-4xl text-indigo-600 mb-2">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 id="alert-title" class="text-lg font-bold text-gray-900">Mesej Sistem</h3>
+            <p id="alert-message" class="text-sm text-gray-600">Penyataan mesej di sini...</p>
+            <button onclick="closeModal('modal-alert')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl shadow transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SETTING BACKEND URL DI SINI ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx12fWcgWbgBSQ9j7N_ogoMfL5DDfMjIGOZDXHWk4sE3a2iiNgRd4G-doySo4PMp6aCCA/exec';
+        
+        // --- 2. KOSONGKAN DUMMY DATA ---
+        let db = {
+            currentTeacher: null, // Mula-mula tiada sesiapa log masuk
+            teachers: [],
+            classes: [],
+            students: []
+        };
+
+        const dskpCurriculum = {
+            "1": [
+                { id: "1.1", title: "1.1 Asas Pemikiran Komputasional", tps: [
+                    "Menyenaraikan empat teknik penyelesaian masalah dalam pemikiran komputasional.",
+                    "Menerangkan dengan jelas sekurang-kurangnya dua teknik penyelesaian masalah.",
+                    "Menggunakan keempat-empat teknik penyelesaian masalah dalam pemikiran komputasional.",
+                    "Menganalisis dan membuat perbandingan cara penyelesaian masalah yang berbeza.",
+                    "Memberi justifikasi teknik penyelesaian masalah yang dipilih.",
+                    "Menghasilkan model atau prototaip terhadap cadangan penyelesaian masalah yang ditemui."
+                ]},
+                { id: "2.1", title: "2.1 Sistem Nombor Perduaan", tps: [
+                    "Menerangkan nombor perpuluhan dan perduaan.",
+                    "Menukar nombor perpuluhan kepada nombor perduaan dan sebaliknya.",
+                    "Melakukan operasi tambah dan tolak bagi dua nilai nombor perduaan dan menunjukkan kaedah.",
+                    "Mendapatkan nilai perwakilan ASCII bagi aksara yang diberi dengan operasi tambah/tolak.",
+                    "Membuat justifikasi terhadap pilihan operasi dalam menentukan perwakilan ASCII.",
+                    "Mencadangkan satu sistem nombor baharu berdasarkan pengetahuan sistem nombor yang dipelajari."
+                ]},
+                { id: "2.2", title: "2.2 Ukuran Data", tps: [
+                    "Menyatakan unit ukuran bagi imej digital dan unit ukuran bagi audio digital.",
+                    "Menerangkan perkaitan antara kedalaman warna/resolusi dengan kualiti imej & kedalaman bit/kadar sampel dengan kualiti audio.",
+                    "Menunjuk cara menukar format imej dan audio untuk menghasilkan saiz fail yang lebih kecil.",
+                    "Mengesan bilangan warna pada suatu paparan digital & kedalaman bit/kadar sampel yang sesuai.",
+                    "Membuat justifikasi pemilihan format untuk imej dan pemilihan format untuk audio.",
+                    "Membuat hipotesis saiz data pada masa hadapan berdasarkan masa kini dengan pembuktian logik."
+                ]},
+                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: [
+                    "Menulis pseudokod untuk menyelesaikan masalah (pelbagai pilihan & ulangan).",
+                    "Menghasilkan pseudokod dan carta alir untuk masalah pelbagai pilihan & ulangan.",
+                    "Menghasilkan pseudokod dan melukis carta alir terperinci.",
+                    "Mencari dan membaiki ralat daripada pseudokod dan carta alir.",
+                    "Menghasilkan lebih daripada satu pseudokod/carta alir bagi permasalahan sama.",
+                    "Mencipta pseudokod/carta alir gabungan pilihan & ulangan untuk membangun aplikasi."
+                ]},
+                { id: "4.1", title: "4.1 Kod Arahan", tps: [
+                    "Menjelaskan fungsi pemboleh ubah dan operator matematik atur cara.",
+                    "Membina atur cara yang melibatkan penggunaan pelbagai pilihan dan ulangan.",
+                    "Menghasilkan atur cara melibatkan pilihan, ulangan, pemboleh ubah dan operator matematik.",
+                    "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.",
+                    "Mencadangkan atur cara yang lebih ringkas daripada atur cara asal.",
+                    "Membangunkan satu atur cara yang boleh dijadikan contoh, dimuat naik dan dikongsi."
+                ]},
+                { id: "4.2", title: "4.2 Kod Arahan HTML", tps: [
+                    "Melakar papan cerita yang logik untuk laman sesawang yang dibina.",
+                    "Menggunakan tags, meletakkan banner serta menu dalam atur cara HTML dengan betul.",
+                    "Menggunakan heading, frame, pautan, imej serta pull down menu dan komen dalam HTML.",
+                    "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.",
+                    "Membuat justifikasi dari segi isi kandungan dan cara penyampaian laman sesawang.",
+                    "Menambah baik atur cara HTML dengan menggunakan ciri tambahan menjadikan laman lebih menarik."
+                ]}
+            ],
+            "2": [
+                { id: "1.1", title: "1.1 Sistem Nombor Perlapanan", tps: [
+                    "Mengenal pasti nombor perlapanan.",
+                    "Menukar nombor perpuluhan kepada nombor perlapanan dan sebaliknya.",
+                    "Menukar nombor perlapanan kepada nombor perduaan dan sebaliknya.",
+                    "Menukar pengekodan ASCII kepada nombor perlapanan melalui kaedah pengiraan.",
+                    "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.",
+                    "Menyediakan folio digital lengkap mengenai sistem nombor berkaitan perwakilan ASCII."
+                ]},
+                { id: "1.2", title: "1.2 Sistem Nombor Perenambelasan", tps: [
+                    "Mengenal pasti nombor perenambelasan.",
+                    "Menukar nombor perpuluhan kepada perenambelasan dan sebaliknya.",
+                    "Menukar nombor perenambelasan kepada perduaan dan sebaliknya.",
+                    "Menukar pengekodan ASCII kepada nombor perenambelasan melalui kaedah pengiraan.",
+                    "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.",
+                    "Menghasilkan sebaris ayat menggunakan sistem nombor perenambelasan secara sistematik."
+                ]},
+                { id: "2.1", title: "2.1 Pembangunan Algoritma", tps: [
+                    "Menyenaraikan jenis-jenis struktur kawalan.",
+                    "Menjelaskan jenis struktur kawalan dengan menggunakan contoh yang sesuai.",
+                    "Menghasilkan pseudokod dan carta alir untuk menyelesaikan masalah melibatkan struktur kawalan.",
+                    "Menunjukkan keupayaan mengesan ralat dalam pseudokod dan carta alir.",
+                    "Menunjukkan keupayaan membaiki ralat dalam pseudokod dan carta alir.",
+                    "Menggabungkan pelbagai struktur kawalan untuk menyelesaikan masalah secara kreatif."
+                ]},
+                { id: "3.1", title: "3.1 Persekitaran Kod Arahan", tps: [
+                    "Mengenal pasti jenis data, pemalar atau operator.",
+                    "Menjelaskan jenis data, pemalar dan operator.",
+                    "Menulis kod segmen yang melibatkan pelbagai jenis data, pemboleh ubah, pemalar dan operator.",
+                    "Menunjukkan keupayaan mengesan ralat dalam kod segmen.",
+                    "Menunjukkan keupayaan membaiki ralat dalam kod segmen.",
+                    "Menggabungkan jenis data, pemboleh ubah, pemalar dan operator dalam kod segmen menyelesaikan masalah."
+                ]},
+                { id: "3.2", title: "3.2 Struktur Kod Arahan", tps: [
+                    "Mengenal pasti struktur kawalan dalam atur cara.",
+                    "Memberi dua contoh struktur kawalan dalam menyelesaikan masalah.",
+                    "Membina atur cara yang melibatkan struktur kawalan untuk menyelesaikan masalah.",
+                    "Menunjukkan keupayaan mengesan ralat dalam atur cara.",
+                    "Menunjukkan keupayaan membaiki ralat dalam atur cara.",
+                    "Mencipta atur cara melibatkan gabungan pelbagai struktur kawalan secara sistematik dan kreatif."
+                ]}
+            ],
+            "3": [
+                { id: "1.1", title: "1.1 Pembangunan Atur Cara (Projek)", tps: [
+                    "Menyenaraikan teknik pemikiran komputasional yang terdapat dalam fasa pembangunan atur cara.",
+                    "Menerangkan sekurang-kurangnya satu teknik pemikiran komputasional dalam setiap fasa pembangunan.",
+                    "Menggunakan lebih daripada satu teknik pemikiran komputasional dalam fasa pembangunan atur cara.",
+                    "Membanding beza teknik pemikiran komputasional yang bersesuaian bagi setiap fasa.",
+                    "Membuat justifikasi penggunaan teknik pemikiran komputasional bagi setiap fasa dalam dokumentasi.",
+                    "Mencipta satu atur cara baharu yang lengkap berserta pelaporan secara sistematik."
+                ]},
+                { id: "2.1", title: "2.1 Kriptografi Dalam Keselamatan Data", tps: [
+                    "Menyatakan kepentingan kriptografi dalam pengkomputeran.",
+                    "Menjelaskan kaedah sifer yang telah dipelajari.",
+                    "Menterjemah mesej menggunakan kaedah sifer yang telah dipelajari.",
+                    "Membandingkan kekuatan dan kelemahan kaedah sifer yang telah dipelajari.",
+                    "Mencadangkan satu kaedah sifer selain yang telah dipelajari dan membuat pembentangan.",
+                    "Mencipta satu kaedah sifer baharu untuk selesaikan masalah harian & bentang folio digital."
+                ]},
+                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: [
+                    "Menyenaraikan ciri-ciri search dan sort yang digunakan dalam penyelesaian masalah.",
+                    "Menjelaskan algoritma search dan algoritma sort dalam penyelesaian masalah.",
+                    "Menggunakan search dan sort bagi menyelesaikan masalah dalam algoritma.",
+                    "Mengesan dan membaiki ralat pseudokod dan carta alir dalam penyelesaian masalah.",
+                    "Memilih teknik search dan sort yang sesuai bagi menyelesaikan masalah dan menambah baik algoritma.",
+                    "Menghasilkan satu aplikasi yang menggunakan teknik search dan sort."
+                ]},
+                { id: "4.1", title: "4.1 Pangkalan Data dan SQL", tps: [
+                    "Mengenal pasti entiti dan atribut dalam penyelesaian masalah.",
+                    "Menerangkan kegunaan kekunci primer dan kekunci asing.",
+                    "Membina pangkalan data (entiti, atribut, borang) dan menunjukkan hubungan antara entiti.",
+                    "Mengesan dan membaiki ralat dalam pangkalan data.",
+                    "Membuat justifikasi penggunaan arahan SQL dalam pertanyaan (query) dan menjana laporan.",
+                    "Membangunkan satu pangkalan data yang boleh dijadikan contoh dan dikongsi bersama."
+                ]},
+                { id: "4.2", title: "4.2 Struktur Kod Arahan", tps: [
+                    "Mengenal pasti struktur kod arahan dalam atur cara.",
+                    "Memberi sekurang-kurangnya dua contoh penggunaan struktur kod arahan.",
+                    "Membina satu atur cara yang mengandungi penyataan function dan procedure.",
+                    "Mengesan ralat dalam atur cara.",
+                    "Membaiki ralat dalam atur cara.",
+                    "Mencipta atur cara melibatkan gabungan struktur kod arahan berdasarkan situasi secara sistematik."
+                ]}
+            ]
+        };
+
+        let currentClassId = null;
+        let activeStudentIdForTp = null;
+        let activeSkIdForTp = null;
+        let barChartInstance = null;
+        let pieChartInstance = null;
+
+        // --- 3. KEMASKINI WINDOW.ONLOAD (AMBIL DATA DARI SERVER) ---
+        window.onload = async function() {
+            // Tunjuk mesej sedang load
+            document.getElementById('alert-title').innerText = "Sedang Memuat";
+            document.getElementById('alert-message').innerText = "Sila tunggu, sedang mengambil pangkalan data dari server Google Sheets...";
+            document.getElementById('alert-icon').className = "fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-2";
+            openModal('modal-alert');
+            
+            try {
+                // Ambil data menggunakan Fetch API
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                
+                db.teachers = data.teachers || [];
+                db.classes = data.classes || [];
+                db.students = data.students || [];
+                
+                closeModal('modal-alert');
+                
+                updateAuthUI();
+                renderDashboard();
+                renderDskpView();
+                
+            } catch (error) {
+                console.error(error);
+                showAlert("Ralat Sambungan", "Gagal mengambil data dari server. Sila pastikan link Apps Script betul dan mempunyai kebenaran 'Anyone'.", false);
+            }
+        };
+
+        function showAlert(title, message, isSuccess = true) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            const icon = document.getElementById('alert-icon');
+            icon.className = isSuccess ? "fa-solid fa-circle-check text-4xl text-emerald-600 mb-2" : "fa-solid fa-triangle-exclamation text-4xl text-amber-500 mb-2";
+            document.getElementById('modal-alert').classList.remove('hidden');
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openLoginModal() { openModal('modal-login'); }
+        function openAddClassModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-class'); }
+        function openAddStudentModal() { openModal('modal-student'); }
+        function openBulkStudentModal() { openModal('modal-bulk'); }
+
+        function handleTeacherLogin(e) {
+            e.preventDefault();
+            const name = document.getElementById('login-teacher-name').value.trim();
+            const id = document.getElementById('login-teacher-id').value.trim();
+
+            let teacher = db.teachers.find(t => t.id === id || t.name.toLowerCase() === name.toLowerCase());
+            if (!teacher) {
+                teacher = { id: id || "T" + Date.now(), name: name, email: id };
+                db.teachers.push(teacher);
+                // Nota: Untuk versi lanjutan, pendaftaran guru baharu juga boleh dihantar ke Google Sheets (POST)
+            }
+            db.currentTeacher = teacher;
+            closeModal('modal-login');
+            updateAuthUI();
+            renderDashboard();
+            if (currentClassId) openClassDetail(currentClassId);
+            showAlert("Berjaya Log Masuk", `Selamat datang, ${teacher.name}!`);
+        }
+
+        function logoutTeacher() {
+            db.currentTeacher = null;
+            updateAuthUI();
+            renderDashboard();
+            backToClasses();
+            showAlert("Log Keluar", "Anda telah berjaya log keluar.");
+        }
+
+        function updateAuthUI() {
+            const btnLogin = document.getElementById('btn-login-nav');
+            const btnLogout = document.getElementById('btn-logout');
+            const userInfo = document.getElementById('nav-user-info');
+            const teacherNameSpan = document.getElementById('nav-teacher-name');
+            const lockNotice = document.getElementById('teacher-lock-notice');
+            const actionPanel = document.getElementById('teacher-action-panel');
+
+            if (db.currentTeacher) {
+                btnLogin.classList.add('hidden');
+                btnLogout.classList.remove('hidden');
+                userInfo.classList.remove('hidden');
+                teacherNameSpan.innerText = db.currentTeacher.name;
+                if(lockNotice) lockNotice.classList.add('hidden');
+                if(actionPanel) actionPanel.classList.remove('hidden');
+            } else {
+                btnLogin.classList.remove('hidden');
+                btnLogout.classList.add('hidden');
+                userInfo.classList.add('hidden');
+                if(lockNotice) lockNotice.classList.remove('hidden');
+                if(actionPanel) actionPanel.classList.add('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-classes').classList.add('hidden');
+            document.getElementById('view-dskp').classList.add('hidden');
+
+            document.getElementById('tab-dashboard').className = "py-3 px-5 font-semibold text-indigo-700 border-b-2 border-indigo-700 text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
+            document.getElementById('tab-classes').className = "py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
+            document.getElementById('tab-dskp').className = "py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).className = "py-3 px-5 font-semibold text-indigo-700 border-b-2 border-indigo-700 text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
+
+            if (tab === 'dashboard') renderDashboard();
+            if (tab === 'classes') renderClassesList();
+        }
+
+        function renderDashboard() {
+            document.getElementById('stats-total-students').innerText = db.students.length;
+
+            const f1Classes = db.classes.filter(c => c.form === "1" || c.form === 1);
+            const f2Classes = db.classes.filter(c => c.form === "2" || c.form === 2);
+            const f3Classes = db.classes.filter(c => c.form === "3" || c.form === 3);
+
+            const f1Students = db.students.filter(s => f1Classes.some(c => c.id === s.classId));
+            const f2Students = db.students.filter(s => f2Classes.some(c => c.id === s.classId));
+            const f3Students = db.students.filter(s => f3Classes.some(c => c.id === s.classId));
+
+            document.getElementById('stat-f1-count').innerText = f1Classes.length + " Kelas";
+            document.getElementById('stat-f1-students').innerText = f1Students.length;
+            document.getElementById('stat-f2-count').innerText = f2Classes.length + " Kelas";
+            document.getElementById('stat-f2-students').innerText = f2Students.length;
+            document.getElementById('stat-f3-count').innerText = f3Classes.length + " Kelas";
+            document.getElementById('stat-f3-students').innerText = f3Students.length;
+
+            renderCharts(f1Students.length, f2Students.length, f3Students.length);
+        }
+
+        function renderCharts(f1, f2, f3) {
+            const ctxBar = document.getElementById('studentBarChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Tingkatan 1', 'Tingkatan 2', 'Tingkatan 3'],
+                    datasets: [{
+                        label: 'Bilangan Murid',
+                        data: [f1, f2, f3],
+                        backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            });
+
+            let tpCounts = [0, 0, 0, 0, 0, 0, 0];
+            db.students.forEach(std => {
+                if (std.tp) {
+                    Object.values(std.tp).forEach(val => {
+                        const numericVal = parseInt(val);
+                        if (numericVal >= 1 && numericVal <= 6) tpCounts[numericVal]++;
+                    });
+                }
+            });
+
+            const ctxPie = document.getElementById('tpPieChart').getContext('2d');
+            if (pieChartInstance) pieChartInstance.destroy();
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['TP 1', 'TP 2', 'TP 3', 'TP 4', 'TP 5', 'TP 6'],
+                    datasets: [{
+                        data: [tpCounts[1], tpCounts[2], tpCounts[3], tpCounts[4], tpCounts[5], tpCounts[6]],
+                        backgroundColor: ['#ef4444', '#f97316', '#facc15', '#3b82f6', '#6366f1', '#10b981']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderClassesList() {
+            const grid = document.getElementById('classes-grid');
+            grid.innerHTML = '';
+
+            const teacherClasses = db.currentTeacher ? db.classes.filter(c => c.teacherId === db.currentTeacher.id) : db.classes;
+
+            if (teacherClasses.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">Tiada kelas berdaftar. Sila daftar kelas baharu.</div>`;
+                return;
+            }
+
+            teacherClasses.forEach(cls => {
+                const count = db.students.filter(s => s.classId === cls.id).length;
+                const teacher = db.teachers.find(t => t.id === cls.teacherId);
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">Tingkatan ${cls.form}</span>
+                            <span class="text-xs text-gray-400"><i class="fa-solid fa-user-tie"></i> ${teacher ? teacher.name : '-'}</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-1">${cls.name}</h3>
+                        <p class="text-sm text-gray-500 mb-6"><i class="fa-solid fa-users text-indigo-500"></i> ${count} Orang Murid</p>
+                    </div>
+                    <button onclick="openClassDetail('${cls.id}')" class="w-full bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2">
+                        <span>Urus Kelas</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function handleAddClass(e) {
+            e.preventDefault();
+            const name = document.getElementById('input-class-name').value.trim();
+            const form = document.getElementById('input-class-form').value;
+
+            const newClass = {
+                id: "C" + Date.now(),
+                teacherId: db.currentTeacher.id,
+                name: name,
+                form: form
+            };
+
+            db.classes.push(newClass);
+            closeModal('modal-class');
+            document.getElementById('input-class-name').value = '';
+            renderClassesList();
+            renderDashboard();
+            showAlert("Berjaya", "Kelas baharu telah berjaya didaftarkan di pelayar web. Sila kemaskini backend untuk simpanan awan (cloud) kekal.");
+        }
+
+        function openClassDetail(classId) {
+            currentClassId = classId;
+            const cls = db.classes.find(c => c.id === classId);
+            if (!cls) return;
+
+            const teacher = db.teachers.find(t => t.id === cls.teacherId);
+            document.getElementById('detail-class-name').innerText = cls.name;
+            document.getElementById('detail-class-form-badge').innerText = `Tingkatan ${cls.form}`;
+            document.getElementById('detail-teacher-name').innerText = teacher ? teacher.name : '-';
+
+            document.getElementById('classes-grid').parentElement.parentElement.querySelector('#teacher-action-panel').parentElement.querySelector(':scope > div:nth-child(2)').classList.add('hidden');
+            document.getElementById('classes-grid').parentElement.classList.add('hidden');
+            document.getElementById('class-detail-view').classList.remove('hidden');
+
+            renderStudentsTable(cls);
+        }
+
+        function backToClasses() {
+            currentClassId = null;
+            document.getElementById('class-detail-view').classList.add('hidden');
+            document.getElementById('classes-grid').parentElement.classList.remove('hidden');
+            renderClassesList();
+        }
+
+        function renderStudentsTable(cls) {
+            const students = db.students.filter(s => s.classId === cls.id);
+            students.sort((a, b) => a.name.localeCompare(b.name));
+            document.getElementById('student-count-badge').innerText = `${students.length} Murid`;
+
+            const skList = dskpCurriculum[cls.form] || [];
+            const table = document.getElementById('students-table');
+
+            let thHtml = `
+                <tr class="bg-gray-50 text-gray-700 text-xs font-bold uppercase tracking-wider">
+                    <th class="px-3 py-3 border-b w-12 text-center">Bil</th>
+                    <th class="px-4 py-3 border-b">Nama Murid & IC</th>
+                    <th class="px-3 py-3 border-b text-center w-20">Jantina</th>
+            `;
+            skList.forEach(sk => {
+                thHtml += `<th class="px-2 py-3 border-b text-center" title="${sk.title}">${sk.id}</th>`;
+            });
+            thHtml += `<th class="px-3 py-3 border-b text-center w-24">Status</th></tr>`;
+
+            let tbodyHtml = '';
+            if (students.length === 0) {
+                tbodyHtml = `<tr><td colspan="${3 + skList.length + 1}" class="text-center py-8 text-gray-400">Tiada murid dalam kelas ini. Sila tambah murid.</td></tr>`;
+            } else {
+                students.forEach((std, i) => {
+                    let completedCount = 0;
+                    skList.forEach(sk => { if (std.tp && std.tp[sk.id]) completedCount++; });
+                    const isComplete = completedCount === skList.length;
+
+                    tbodyHtml += `
+                        <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
+                            <td class="px-3 py-3 text-center text-gray-500">${i + 1}</td>
+                            <td class="px-4 py-3">
+                                <div class="font-bold text-gray-900 uppercase">${std.name}</div>
+                                <div class="text-xs text-gray-500 font-mono">${std.ic} • ${std.race}</div>
+                            </td>
+                            <td class="px-3 py-3 text-center"><span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded">${std.gender}</span></td>
+                    `;
+
+                    skList.forEach(sk => {
+                        const tpVal = std.tp && std.tp[sk.id] ? std.tp[sk.id] : '-';
+                        const badgeColor = tpVal === '-' ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-indigo-600 text-white font-bold hover:bg-indigo-700';
+                        tbodyHtml += `
+                            <td class="px-1 py-3 text-center">
+                                <button onclick="openTpModal('${std.id}', '${sk.id}')" class="w-8 h-8 rounded-lg ${badgeColor} text-xs transition shadow-sm" title="Klik untuk kemaskini TP ${sk.id}">
+                                    ${tpVal}
+                                </button>
+                            </td>
+                        `;
+                    });
+
+                    const statusBadge = isComplete 
+                        ? '<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">Lengkap</span>' 
+                        : '<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">Belum</span>';
+
+                    tbodyHtml += `<td class="px-3 py-3 text-center">${statusBadge}</td></tr>`;
+                });
+            }
+
+            table.innerHTML = thHtml + tbodyHtml;
+        }
+
+        // --- 4. KEMASKINI FUNGSI TP (HANTAR KE GOOGLE SHEETS) ---
+        function openTpModal(studentId, skId) {
+            activeStudentIdForTp = studentId;
+            activeSkIdForTp = skId;
+            const cls = db.classes.find(c => c.id === currentClassId);
+            const skList = dskpCurriculum[cls.form] || [];
+            const sk = skList.find(s => s.id === skId);
+            
+            document.getElementById('tp-modal-title').innerText = "Tetapkan Tahap Penguasaan (TP)";
+            document.getElementById('tp-modal-subtitle').innerText = `Standard Kandungan: ${sk ? sk.id + ' - ' + sk.title : skId}`;
+            
+            const container = document.getElementById('tp-options-container');
+            container.innerHTML = '';
+            
+            if (sk && sk.tps) {
+                sk.tps.forEach((desc, idx) => {
+                    const tpNum = idx + 1;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = "w-full text-left p-3 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition flex items-start space-x-3 group";
+                    btn.innerHTML = `
+                        <span class="bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-xs shrink-0 transition">TP ${tpNum}</span>
+                        <p class="text-xs text-gray-700 leading-relaxed">${desc}</p>
+                    `;
+                    btn.onclick = () => selectTp(tpNum);
+                    container.appendChild(btn);
+                });
+            }
+            openModal('modal-tp');
+        }
+
+        async function selectTp(tpValue) {
+            if (!activeStudentIdForTp || !activeSkIdForTp) return;
+            const student = db.students.find(s => s.id === activeStudentIdForTp);
+            
+            // 1. Update UI dengan cepat
+            if (student) {
+                if (!student.tp) student.tp = {};
+                student.tp[activeSkIdForTp] = tpValue;
+            }
+            closeModal('modal-tp');
+            const cls = db.classes.find(c => c.id === currentClassId);
+            renderStudentsTable(cls);
+            renderDashboard();
+            
+            // 2. Hantar ke Google Sheets
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "updateTP",
+                        data: {
+                            studentId: activeStudentIdForTp,
+                            skId: activeSkIdForTp,
+                            tpValue: tpValue
+                        }
+                    })
+                });
+                showAlert("Berjaya", `Tahap Penguasaan TP ${tpValue} berjaya direkodkan di server!`);
+            } catch(err) {
+                console.error(err);
+                showAlert("Ralat", "Gagal menyimpan TP ke server. Sila semak sambungan internet.", false);
+            }
+        }
+
+        // --- 5. KEMASKINI TAMBAH MURID (HANTAR KE GOOGLE SHEETS) ---
+        async function handleAddStudent(e) {
+            e.preventDefault();
+            const name = document.getElementById('input-student-name').value.trim().toUpperCase();
+            const ic = document.getElementById('input-student-ic').value.trim();
+            const race = document.getElementById('input-student-race').value;
+            const gender = document.getElementById('input-student-gender').value;
+
+            const newStudent = {
+                id: "S" + Date.now() + Math.floor(Math.random()*1000),
+                classId: currentClassId,
+                name: name,
+                ic: ic,
+                race: race,
+                gender: gender,
+                tp: {}
+            };
+
+            // 1. Update UI
+            db.students.push(newStudent);
+            closeModal('modal-student');
+            document.getElementById('input-student-name').value = '';
+            document.getElementById('input-student-ic').value = '';
+            
+            const cls = db.classes.find(c => c.id === currentClassId);
+            renderStudentsTable(cls);
+            renderDashboard();
+            
+            // 2. Hantar ke Google Sheets
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "addStudent",
+                        data: newStudent
+                    })
+                });
+                showAlert("Berjaya", "Maklumat murid telah berjaya ditambah ke server Database!");
+            } catch(err) {
+                console.error(err);
+                showAlert("Ralat", "Gagal menyimpan maklumat murid ke server.", false);
+            }
+        }
+
+        function handleBulkStudents() {
+            const rawText = document.getElementById('textarea-bulk').value.trim();
+            if (!rawText) {
+                showAlert("Ralat", "Sila masukkan senarai murid.", false);
+                return;
+            }
+
+            const lines = rawText.split(/\r?\n/).filter(l => l.trim() !== '');
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                let parts = [];
+                if (line.includes('\t')) {
+                    parts = line.split('\t').map(p => p.trim());
+                } else if (line.includes(',')) {
+                    parts = line.split(',').map(p => p.trim());
+                } else if (line.includes('|')) {
+                    parts = line.split('|').map(p => p.trim());
+                } else {
+                    parts = line.split(/\s{2,}/).map(p => p.trim());
+                }
+
+                if (parts.length >= 1 && parts[0] !== '') {
+                    const name = parts[0].toUpperCase();
+                    const ic = parts[1] && parts[1] !== '' ? parts[1] : ('10' + Math.floor(100000 + Math.random() * 900000) + '-' + Math.floor(10 + Math.random() * 89) + '-' + Math.floor(1000 + Math.random() * 9000));
+                    const race = parts[2] && parts[2] !== '' ? parts[2] : 'Melayu';
+                    let rawGender = parts[3] && parts[3] !== '' ? parts[3].toUpperCase() : 'L';
+                    let gender = 'L';
+                    if (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) {
+                        gender = 'P';
+                    } else {
+                        gender = 'L';
+                    }
+
+                    db.students.push({
+                        id: "S" + Date.now() + Math.random(),
+                        classId: currentClassId,
+                        name: name,
+                        ic: ic,
+                        race: race,
+                        gender: gender,
+                        tp: {}
+                    });
+                    addedCount++;
+                }
+            });
+
+            closeModal('modal-bulk');
+            document.getElementById('textarea-bulk').value = '';
+
+            if (addedCount > 0) {
+                const cls = db.classes.find(c => c.id === currentClassId);
+                renderStudentsTable(cls);
+                renderDashboard();
+                showAlert("Peringatan", `${addedCount} murid diimport secara lokal. Pengimportan pukal belum disokong automatik ke Google Sheets tanpa update kod Apps Script.`, true);
+            } else {
+                showAlert("Ralat Format", "Tiada data murid dikesan. Sila pastikan sekurang-kurangnya nama murid dimasukkan.", false);
+            }
+        }
+
+        function renderDskpView() {
+            const form = document.getElementById('dskp-form-select').value;
+            const container = document.getElementById('dskp-content-container');
+            container.innerHTML = '';
+
+            const skList = dskpCurriculum[form] || [];
+            skList.forEach(sk => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4";
+                
+                let tpListHtml = '';
+                sk.tps.forEach((desc, idx) => {
+                    tpListHtml += `
+                        <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl">
+                            <span class="bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs shrink-0">TP ${idx + 1}</span>
+                            <p class="text-xs text-gray-700 leading-relaxed">${desc}</p>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="border-b pb-3">
+                        <span class="text-xs font-bold text-indigo-600 uppercase">Tingkatan ${form} • Standard Kandungan</span>
+                        <h3 class="text-lg font-bold text-gray-900 mt-0.5">${sk.title}</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${tpListHtml}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Professional Print Report via Standalone Window
+        function triggerPrint() {
+            const cls = db.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+            const teacher = db.teachers.find(t => t.id === cls.teacherId);
+            const students = db.students.filter(s => s.classId === currentClassId);
+            students.sort((a, b) => a.name.localeCompare(b.name));
+            
+            const skList = dskpCurriculum[cls.form] || [];
+            const teacherName = teacher ? teacher.name : '-';
+            const dateStr = new Date().toLocaleDateString('ms-MY', {
+                day: '2-digit', month: 'long', year: 'numeric'
+            });
+
+            let thHtml = `
+                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 40px;">Bil</th>
+                <th style="border: 1px solid #1e293b; padding: 6px; text-align: left;">Nama Murid</th>
+                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 110px;">No. KP</th>
+                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 50px;">Jantina</th>
+            `;
+            skList.forEach(sk => {
+                thHtml += `<th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 45px;" title="${sk.title}">${sk.id}</th>`;
+            });
+
+            let rowsHtml = '';
+            if (students.length === 0) {
+                rowsHtml = `<tr><td colspan="${4 + skList.length}" style="border: 1px solid #1e293b; padding: 12px; text-align: center; color: #64748b;">Tiada murid berdaftar dalam kelas ini.</td></tr>`;
+            } else {
+                students.forEach((std, i) => {
+                    let tdHtml = `
+                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${i + 1}</td>
+                        <td style="border: 1px solid #1e293b; padding: 6px; text-transform: uppercase; font-weight: 600;">${std.name}</td>
+                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center; font-family: monospace;">${std.ic}</td>
+                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${std.gender}</td>
+                    `;
+                    skList.forEach(sk => {
+                        const tpVal = std.tp && std.tp[sk.id] ? std.tp[sk.id] : '-';
+                        const style = tpVal === '-' ? 'background-color: #fef2f2; color: #dc2626;' : 'font-weight: bold; background-color: #f8fafc;';
+                        tdHtml += `<td style="border: 1px solid #1e293b; padding: 6px; text-align: center; ${style}">${tpVal}</td>`;
+                    });
+                    rowsHtml += `<tr>${tdHtml}</tr>`;
+                });
+            }
+
+            let skLegendHtml = '';
+            skList.forEach(sk => {
+                skLegendHtml += `<div style="margin-bottom: 3px;"><strong>${sk.id}:</strong> ${sk.title}</div>`;
+            });
+
+            const printHTML = `
+                <!DOCTYPE html>
+                <html lang="ms">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Borang Transit PBD ASK - ${cls.name}</title>
+                    <style>
+                        @page { size: A4 landscape; margin: 10mm; }
+                        body { font-family: 'Inter', Arial, sans-serif; color: #0f172a; margin: 0; padding: 10px; font-size: 11px; }
+                        .header { text-align: center; margin-bottom: 15px; }
+                        .header h2 { margin: 0 0 3px 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .header h3 { margin: 0 0 5px 0; font-size: 13px; color: #312e81; text-transform: uppercase; }
+                        .header p { margin: 2px 0; font-size: 11px; font-weight: 600; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+                        th, td { border: 1px solid #1e293b; padding: 5px 6px; font-size: 10px; }
+                        thead { background-color: #f1f5f9; }
+                        .legend { margin-top: 10px; margin-bottom: 20px; font-size: 9px; background: #f8fafc; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; }
+                        .legend h4 { margin: 0 0 4px 0; font-size: 10px; text-transform: uppercase; color: #1e293b; }
+                        .signatures { display: flex; justify-content: space-between; margin-top: 25px; page-break-inside: avoid; font-size: 11px; }
+                        .sig-box { width: 240px; }
+                        .sig-line { border-bottom: 1px solid #64748b; height: 35px; margin-top: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>SMK KEM TERENDAK</h2>
+                        <h3>Borang Transit Pentaksiran Bilik Darjah (PBD) - Asas Sains Komputer (ASK)</h3>
+                        <p>Tingkatan ${cls.form} &nbsp;|&nbsp; Nama Kelas: ${cls.name} &nbsp;|&nbsp; Guru Pengajar: ${teacherName}</p>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>${thHtml}</tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+
+                    <div class="legend">
+                        <h4>Rujukan Standard Kandungan (SK) Tingkatan ${cls.form}:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                            ${skLegendHtml}
+                        </div>
+                    </div>
+
+                    <div class="signatures">
+                        <div class="sig-box">
+                            <p><strong>Tandatangan Guru Pengajar:</strong></p>
+                            <div class="sig-line"></div>
+                            <p style="margin-top: 4px; font-size: 10px;">Nama: ${teacherName}</p>
+                        </div>
+                        <div class="sig-box">
+                            <p><strong>Disahkan oleh (Pengetua / PK Pentadbiran):</strong></p>
+                            <div class="sig-line"></div>
+                            <p style="margin-top: 4px; font-size: 10px;">Tarikh: ${dateStr}</p>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank', 'width=1000,height=750');
+            if (printWindow) {
+                printWindow.document.open();
+                printWindow.document.write(printHTML);
+                printWindow.document.close();
+            } else {
+                showAlert("Ralat Sekatan Pop-up", "Sila benarkan pop-up pada pelayar web anda untuk mencetak laporan.", false);
+            }
+        }
+    </script>
+</body>
+</html>
