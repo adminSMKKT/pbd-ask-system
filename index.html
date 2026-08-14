@@ -441,12 +441,10 @@
 
     <script>
         // URL API ANDA DARI GOOGLE APPS SCRIPT
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9tPQku35YFB4CD4mpDntdXB7O-JQVhcPc9dHpgybFCiB9Z0BnTCYHdfNuaSvtslytww/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx12fWcgWbgBSQ9j7N_ogoMfL5DDfMjIGOZDXHWk4sE3a2iiNgRd4G-doySo4PMp6aCCA/exec';
 
-        // Helper API POST untuk atasi isu CORS Browser
         async function sendDataToBackend(action, data) {
             try {
-                // Hantar header 'text/plain' supaya browser tidak block POST (elak CORS preflight)
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -482,7 +480,6 @@
             ]
         };
 
-        // Pangkalan Data Kosong
         let db = {
             currentTeacher: null,
             teachers: [],
@@ -497,7 +494,6 @@
         let pieChartInstance = null;
         let pendingConfirmAction = null;
 
-        // Muat Data dari Google Sheets
         window.onload = async function() {
             document.getElementById('alert-title').innerText = "Sedang Memuat";
             document.getElementById('alert-message').innerText = "Memuat turun pangkalan data dari awan (Google Sheets)...";
@@ -513,7 +509,6 @@
                 db.students = data.students || [];
                 
                 closeModal('modal-alert');
-                
                 updateAuthUI();
                 renderDashboard();
                 renderDskpView();
@@ -536,7 +531,6 @@
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function openLoginModal() { openModal('modal-login'); }
         
-        // SEKATAN AKSES KETAT UNTUK SEMUA BUTANG POP-UP
         function openAddClassModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-class'); }
         function openAddStudentModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-student'); }
         function openBulkStudentModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-bulk'); }
@@ -563,18 +557,19 @@
         function handleTeacherLogin(e) {
             e.preventDefault();
             const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
+            const password = document.getElementById('login-password').value.trim(); // Added trim here
 
             if (authMode === 'login') {
-                const teacher = db.teachers.find(t => t.username === username);
+                // Use String() conversion to prevent Number vs String mismatch from Google Sheets for short numeric passwords
+                const teacher = db.teachers.find(t => String(t.username).trim() === username);
                 if (!teacher) {
                     return showAlert("Ralat Log Masuk", "ID Pengguna (Username) tidak wujud. Sila daftar akaun baharu terlebih dahulu.", false);
                 }
-                if (teacher.password !== password) {
+                
+                if (String(teacher.password).trim() !== password) {
                     return showAlert("Ralat Log Masuk", "Kata laluan yang dimasukkan adalah salah. Sila cuba lagi.", false);
                 }
                 
-                // Berjaya Log Masuk
                 db.currentTeacher = teacher;
                 closeModal('modal-login');
                 updateAuthUI();
@@ -583,9 +578,8 @@
                 showAlert("Berjaya Log Masuk", `Selamat kembali, ${teacher.name}!`);
                 
             } else {
-                // Pendaftaran Baharu
                 const name = document.getElementById('login-teacher-name').value.trim();
-                const exists = db.teachers.find(t => t.username === username);
+                const exists = db.teachers.find(t => String(t.username).trim() === username);
                 
                 if (exists) {
                     return showAlert("Ralat Pendaftaran", "Username ini telah digunakan oleh pengguna lain. Sila pilih username lain.", false);
@@ -606,9 +600,7 @@
                 renderDashboard();
                 if (currentClassId) openClassDetail(currentClassId);
                 
-                // Simpan ke Google Sheets
                 sendDataToBackend("addTeacher", newTeacher);
-                
                 showAlert("Pendaftaran Berjaya", `Selamat datang ke sistem, ${newTeacher.name}!`);
             }
         }
@@ -616,8 +608,8 @@
         function logoutTeacher() {
             db.currentTeacher = null;
             updateAuthUI();
-            backToClasses(); // Tutup paparan senarai murid jika sedang dibuka
-            switchTab('dashboard'); // Paksa pengguna kembali ke tab utama
+            backToClasses();
+            switchTab('dashboard');
             renderDashboard();
             showAlert("Log Keluar", "Anda telah berjaya log keluar.");
         }
@@ -641,14 +633,13 @@
                 btnLogin.classList.remove('hidden');
                 btnLogout.classList.add('hidden');
                 userInfo.classList.add('hidden');
-                teacherNameSpan.innerText = "Cikgu"; // Padam nama guru terakhir
+                teacherNameSpan.innerText = "Cikgu";
                 if(lockNotice) lockNotice.classList.remove('hidden');
                 if(actionPanel) actionPanel.classList.add('hidden');
             }
         }
 
         function switchTab(tab) {
-            // Cek status log masuk jika cuba akses tab selain dashboard
             if (!db.currentTeacher && tab !== 'dashboard') {
                 showAlert("Akses Disekat", "Sila daftar atau log masuk terlebih dahulu untuk mengakses menu ini.", false);
                 openLoginModal();
@@ -732,12 +723,8 @@
             const grid = document.getElementById('classes-grid');
             grid.innerHTML = '';
             
-            // KAWALAN KETAT: Jika tidak log masuk, jangan render/tunjuk sebarang kelas
-            if (!db.currentTeacher) {
-                return; 
-            }
+            if (!db.currentTeacher) return; 
 
-            // KAWALAN GURU: Hanya tarik kelas yang didaftarkan oleh guru ini sahaja (teacherId sepadan)
             const teacherClasses = db.classes.filter(c => c.teacherId === db.currentTeacher.id);
             
             if (teacherClasses.length === 0) {
@@ -786,10 +773,7 @@
             
             renderClassesList();
             renderDashboard();
-            
-            // Hantar ke Google Sheets
             sendDataToBackend("addClass", newClass);
-            
             showAlert("Berjaya", "Kelas baharu telah berjaya didaftarkan ke Google Sheets!");
         }
 
@@ -906,14 +890,11 @@
             const cls = db.classes.find(c => c.id === currentClassId);
             renderStudentsTable(cls);
             renderDashboard();
-            
-            // Hantar ke Google Sheets
             sendDataToBackend("updateTP", {
                 studentId: activeStudentIdForTp,
                 skId: activeSkIdForTp,
                 tpValue: tpValue
             });
-            
             showAlert("Berjaya", `Tahap Penguasaan TP ${tpValue} berjaya direkodkan di Google Sheets!`);
         }
 
@@ -942,10 +923,7 @@
             const cls = db.classes.find(c => c.id === currentClassId);
             renderStudentsTable(cls);
             renderDashboard();
-            
-            // Hantar ke Google Sheets
             sendDataToBackend("addStudent", newStudent);
-            
             showAlert("Berjaya", "Maklumat murid telah berjaya ditambah ke Google Sheets!");
         }
 
@@ -953,10 +931,9 @@
             const rawText = document.getElementById('textarea-bulk').value.trim();
             if (!rawText) return showAlert("Ralat", "Sila masukkan senarai murid.", false);
             const lines = rawText.split(/\r?\n/).filter(l => l.trim() !== '');
-            
-            let newStudentsToSave = []; // Array untuk kumpul data murid sebelum hantar
+            let studentsArray = [];
 
-            lines.forEach((line, index) => {
+            lines.forEach(line => {
                 let parts = [];
                 if (line.includes('\t')) parts = line.split('\t').map(p => p.trim());
                 else if (line.includes(',')) parts = line.split(',').map(p => p.trim());
@@ -970,32 +947,26 @@
                     let rawGender = parts[3] && parts[3] !== '' ? parts[3].toUpperCase() : 'L';
                     let gender = (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) ? 'P' : 'L';
 
-                    // Bina ID unik menggunakan timestamp dan index
-                    const newStudent = { id: "S" + Date.now() + Math.floor(Math.random() * 9999) + index, classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
-                    
-                    db.students.push(newStudent); // Papar terus pada skrin
-                    newStudentsToSave.push(newStudent); // Kumpul ke dalam bungkusan data
+                    const newStudent = { id: "S" + Date.now() + Math.random(), classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
+                    db.students.push(newStudent);
+                    studentsArray.push(newStudent);
                 }
             });
 
             closeModal('modal-bulk');
             document.getElementById('textarea-bulk').value = '';
 
-            if (newStudentsToSave.length > 0) {
+            if (studentsArray.length > 0) {
                 const cls = db.classes.find(c => c.id === currentClassId);
                 renderStudentsTable(cls);
                 renderDashboard();
-                
-                // PENTING: Hantar kesemua data SERENTAK (Bulk) ke Google Sheets dalam 1 panggilan
-                sendDataToBackend("addStudentsBulk", newStudentsToSave);
-                
-                showAlert("Berjaya", `${newStudentsToSave.length} murid telah berjaya diimport ke Google Sheets!`, true);
+                sendDataToBackend("addStudentsBulk", studentsArray);
+                showAlert("Berjaya", `${studentsArray.length} murid telah berjaya diimport ke Google Sheets!`, true);
             } else {
                 showAlert("Ralat Format", "Tiada data murid dikesan.", false);
             }
         }
-// 
-        // --- FUNGSI HAPUS KELAS DAN MURID ---
+
         function executeConfirm() {
             if (pendingConfirmAction) pendingConfirmAction();
             closeModal('modal-confirm');
@@ -1010,7 +981,7 @@
             
             pendingConfirmAction = () => {
                 db.classes = db.classes.filter(c => c.id !== currentClassId);
-                db.students = db.students.filter(s => s.classId !== currentClassId); // Buang murid dlm memory
+                db.students = db.students.filter(s => s.classId !== currentClassId);
                 sendDataToBackend("deleteClass", { classId: currentClassId });
                 backToClasses();
                 renderDashboard();
@@ -1026,7 +997,6 @@
             pendingConfirmAction = () => {
                 db.students = db.students.filter(s => s.id !== studentId);
                 sendDataToBackend("deleteStudent", { studentId: studentId });
-                
                 const cls = db.classes.find(c => c.id === currentClassId);
                 renderStudentsTable(cls);
                 renderDashboard();
@@ -1051,7 +1021,6 @@
             });
         }
 
-        // Print Functionality (Tiada perubahan, biarkan sahaja)
         function triggerPrint() {
             const cls = db.classes.find(c => c.id === currentClassId);
             if (!cls) return;
