@@ -535,9 +535,11 @@
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function openLoginModal() { openModal('modal-login'); }
+        
+        // SEKATAN AKSES KETAT UNTUK SEMUA BUTANG POP-UP
         function openAddClassModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-class'); }
-        function openAddStudentModal() { openModal('modal-student'); }
-        function openBulkStudentModal() { openModal('modal-bulk'); }
+        function openAddStudentModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-student'); }
+        function openBulkStudentModal() { if (!db.currentTeacher) { openLoginModal(); return; } openModal('modal-bulk'); }
 
         let authMode = 'login';
         
@@ -614,8 +616,9 @@
         function logoutTeacher() {
             db.currentTeacher = null;
             updateAuthUI();
+            backToClasses(); // Tutup paparan senarai murid jika sedang dibuka
+            switchTab('dashboard'); // Paksa pengguna kembali ke tab utama
             renderDashboard();
-            backToClasses();
             showAlert("Log Keluar", "Anda telah berjaya log keluar.");
         }
 
@@ -638,6 +641,7 @@
                 btnLogin.classList.remove('hidden');
                 btnLogout.classList.add('hidden');
                 userInfo.classList.add('hidden');
+                teacherNameSpan.innerText = "Cikgu"; // Padam nama guru terakhir
                 if(lockNotice) lockNotice.classList.remove('hidden');
                 if(actionPanel) actionPanel.classList.add('hidden');
             }
@@ -727,11 +731,20 @@
         function renderClassesList() {
             const grid = document.getElementById('classes-grid');
             grid.innerHTML = '';
-            const teacherClasses = db.currentTeacher ? db.classes.filter(c => c.teacherId === db.currentTeacher.id) : db.classes;
+            
+            // KAWALAN KETAT: Jika tidak log masuk, jangan render/tunjuk sebarang kelas
+            if (!db.currentTeacher) {
+                return; 
+            }
+
+            // KAWALAN GURU: Hanya tarik kelas yang didaftarkan oleh guru ini sahaja (teacherId sepadan)
+            const teacherClasses = db.classes.filter(c => c.teacherId === db.currentTeacher.id);
+            
             if (teacherClasses.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">Tiada kelas berdaftar. Sila daftar kelas baharu.</div>`;
                 return;
             }
+            
             teacherClasses.forEach(cls => {
                 const count = db.students.filter(s => s.classId === cls.id).length;
                 const teacher = db.teachers.find(t => t.id === cls.teacherId);
