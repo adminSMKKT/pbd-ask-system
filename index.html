@@ -441,7 +441,7 @@
 
     <script>
         // URL API ANDA DARI GOOGLE APPS SCRIPT
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw6XCy_ABg78krgXj3ZlHgKKl-0UNQa3UNE9oLelQ0ULCZjUFoLgasEqfepTDx_Yd1zIg/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9tPQku35YFB4CD4mpDntdXB7O-JQVhcPc9dHpgybFCiB9Z0BnTCYHdfNuaSvtslytww/exec';
 
         // Helper API POST untuk atasi isu CORS Browser
         async function sendDataToBackend(action, data) {
@@ -953,9 +953,10 @@
             const rawText = document.getElementById('textarea-bulk').value.trim();
             if (!rawText) return showAlert("Ralat", "Sila masukkan senarai murid.", false);
             const lines = rawText.split(/\r?\n/).filter(l => l.trim() !== '');
-            let addedCount = 0;
+            
+            let newStudentsToSave = []; // Array untuk kumpul data murid sebelum hantar
 
-            lines.forEach(line => {
+            lines.forEach((line, index) => {
                 let parts = [];
                 if (line.includes('\t')) parts = line.split('\t').map(p => p.trim());
                 else if (line.includes(',')) parts = line.split(',').map(p => p.trim());
@@ -969,28 +970,31 @@
                     let rawGender = parts[3] && parts[3] !== '' ? parts[3].toUpperCase() : 'L';
                     let gender = (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) ? 'P' : 'L';
 
-                    const newStudent = { id: "S" + Date.now() + Math.random(), classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
-                    db.students.push(newStudent);
+                    // Bina ID unik menggunakan timestamp dan index
+                    const newStudent = { id: "S" + Date.now() + Math.floor(Math.random() * 9999) + index, classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
                     
-                    // Simpan setiap murid ke server (satu persatu)
-                    sendDataToBackend("addStudent", newStudent);
-                    addedCount++;
+                    db.students.push(newStudent); // Papar terus pada skrin
+                    newStudentsToSave.push(newStudent); // Kumpul ke dalam bungkusan data
                 }
             });
 
             closeModal('modal-bulk');
             document.getElementById('textarea-bulk').value = '';
 
-            if (addedCount > 0) {
+            if (newStudentsToSave.length > 0) {
                 const cls = db.classes.find(c => c.id === currentClassId);
                 renderStudentsTable(cls);
                 renderDashboard();
-                showAlert("Berjaya", `${addedCount} murid telah berjaya diimport ke Google Sheets!`, true);
+                
+                // PENTING: Hantar kesemua data SERENTAK (Bulk) ke Google Sheets dalam 1 panggilan
+                sendDataToBackend("addStudentsBulk", newStudentsToSave);
+                
+                showAlert("Berjaya", `${newStudentsToSave.length} murid telah berjaya diimport ke Google Sheets!`, true);
             } else {
                 showAlert("Ralat Format", "Tiada data murid dikesan.", false);
             }
         }
-
+// 
         // --- FUNGSI HAPUS KELAS DAN MURID ---
         function executeConfirm() {
             if (pendingConfirmAction) pendingConfirmAction();
