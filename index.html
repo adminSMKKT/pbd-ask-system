@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem PBD Asas Sains Komputer SMK KEM TERENDAK</title>
+    <title>Sistem PBD Asas Sains Komputer (TRENDSS)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -947,7 +947,10 @@
                     let rawGender = parts[3] && parts[3] !== '' ? parts[3].toUpperCase() : 'L';
                     let gender = (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) ? 'P' : 'L';
 
-                    const newStudent = { id: "S" + Date.now() + Math.random(), classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
+                    // PENAMBAHBAIKAN: Hasilkan ID unik supaya tidak bertindih jika masuk 26 orang serentak
+                    const uniqueId = "S" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+                    
+                    const newStudent = { id: uniqueId, classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
                     db.students.push(newStudent);
                     studentsArray.push(newStudent);
                 }
@@ -1053,6 +1056,5 @@
             if (printWindow) { printWindow.document.open(); printWindow.document.write(printHTML); printWindow.document.close(); } else { showAlert("Ralat Sekatan Pop-up", "Sila benarkan pop-up pada pelayar web anda untuk mencetak laporan.", false); }
         }
     </script>
-    <p>Unit ICT SMK Kem Terendak</p>
 </body>
 </html>
