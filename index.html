@@ -205,6 +205,10 @@
                             <i class="fa-solid fa-print"></i>
                             <span>Cetak Borang Transit</span>
                         </button>
+                        <button onclick="askDeleteClass()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 shadow">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Hapus Kelas</span>
+                        </button>
                     </div>
                 </div>
 
@@ -416,9 +420,28 @@
         </div>
     </div>
 
+    <!-- Modal Pengesahan (Confirm) -->
+    <div id="modal-confirm" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div class="text-4xl text-red-500 mb-2">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="confirm-title" class="text-lg font-bold text-gray-900">Pengesahan</h3>
+            <p id="confirm-message" class="text-sm text-gray-600">Adakah anda pasti?</p>
+            <div class="flex space-x-3 mt-2">
+                <button onclick="closeModal('modal-confirm')" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2.5 rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="executeConfirm()" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl shadow transition">
+                    Pasti, Teruskan
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // URL API ANDA DARI GOOGLE APPS SCRIPT
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx12fWcgWbgBSQ9j7N_ogoMfL5DDfMjIGOZDXHWk4sE3a2iiNgRd4G-doySo4PMp6aCCA/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw6XCy_ABg78krgXj3ZlHgKKl-0UNQa3UNE9oLelQ0ULCZjUFoLgasEqfepTDx_Yd1zIg/exec';
 
         // Helper API POST untuk atasi isu CORS Browser
         async function sendDataToBackend(action, data) {
@@ -472,6 +495,7 @@
         let activeSkIdForTp = null;
         let barChartInstance = null;
         let pieChartInstance = null;
+        let pendingConfirmAction = null;
 
         // Muat Data dari Google Sheets
         window.onload = async function() {
@@ -620,6 +644,13 @@
         }
 
         function switchTab(tab) {
+            // Cek status log masuk jika cuba akses tab selain dashboard
+            if (!db.currentTeacher && tab !== 'dashboard') {
+                showAlert("Akses Disekat", "Sila daftar atau log masuk terlebih dahulu untuk mengakses menu ini.", false);
+                openLoginModal();
+                return;
+            }
+
             document.getElementById('view-dashboard').classList.add('hidden');
             document.getElementById('view-classes').classList.add('hidden');
             document.getElementById('view-dskp').classList.add('hidden');
@@ -783,10 +814,11 @@
                     <th class="px-3 py-3 border-b text-center w-20">Jantina</th>
             `;
             skList.forEach(sk => thHtml += `<th class="px-2 py-3 border-b text-center" title="${sk.title}">${sk.id}</th>`);
-            thHtml += `<th class="px-3 py-3 border-b text-center w-24">Status</th></tr>`;
+            thHtml += `<th class="px-3 py-3 border-b text-center w-24">Status</th>
+                       <th class="px-3 py-3 border-b text-center w-16">Tindakan</th></tr>`;
             let tbodyHtml = '';
             if (students.length === 0) {
-                tbodyHtml = `<tr><td colspan="${3 + skList.length + 1}" class="text-center py-8 text-gray-400">Tiada murid dalam kelas ini. Sila tambah murid.</td></tr>`;
+                tbodyHtml = `<tr><td colspan="${3 + skList.length + 2}" class="text-center py-8 text-gray-400">Tiada murid dalam kelas ini. Sila tambah murid.</td></tr>`;
             } else {
                 students.forEach((std, i) => {
                     let completedCount = 0;
@@ -813,7 +845,14 @@
                         `;
                     });
                     const statusBadge = isComplete ? '<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">Lengkap</span>' : '<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">Belum</span>';
-                    tbodyHtml += `<td class="px-3 py-3 text-center">${statusBadge}</td></tr>`;
+                    tbodyHtml += `
+                        <td class="px-3 py-3 text-center">${statusBadge}</td>
+                        <td class="px-3 py-3 text-center">
+                            <button onclick="askDeleteStudent('${std.id}', '${std.name.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition" title="Hapus Murid">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>`;
                 });
             }
             table.innerHTML = thHtml + tbodyHtml;
@@ -937,6 +976,45 @@
             } else {
                 showAlert("Ralat Format", "Tiada data murid dikesan.", false);
             }
+        }
+
+        // --- FUNGSI HAPUS KELAS DAN MURID ---
+        function executeConfirm() {
+            if (pendingConfirmAction) pendingConfirmAction();
+            closeModal('modal-confirm');
+        }
+
+        function askDeleteClass() {
+            const cls = db.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+            document.getElementById('confirm-title').innerText = "Hapus Kelas & Rekod";
+            document.getElementById('confirm-message').innerText = `Amaran: Adakah anda pasti mahu memadam keseluruhan kelas ${cls.name}? Semua data dan markah murid akan dipadam secara kekal.`;
+            openModal('modal-confirm');
+            
+            pendingConfirmAction = () => {
+                db.classes = db.classes.filter(c => c.id !== currentClassId);
+                db.students = db.students.filter(s => s.classId !== currentClassId); // Buang murid dlm memory
+                sendDataToBackend("deleteClass", { classId: currentClassId });
+                backToClasses();
+                renderDashboard();
+                showAlert("Berjaya Dihapus", `Kelas ${cls.name} beserta rekod murid telah dipadam.`, true);
+            };
+        }
+
+        function askDeleteStudent(studentId, studentName) {
+            document.getElementById('confirm-title').innerText = "Hapus Murid";
+            document.getElementById('confirm-message').innerText = `Adakah anda pasti mahu memadam murid ${studentName} dari senarai?`;
+            openModal('modal-confirm');
+
+            pendingConfirmAction = () => {
+                db.students = db.students.filter(s => s.id !== studentId);
+                sendDataToBackend("deleteStudent", { studentId: studentId });
+                
+                const cls = db.classes.find(c => c.id === currentClassId);
+                renderStudentsTable(cls);
+                renderDashboard();
+                showAlert("Berjaya Dihapus", `Rekod murid ${studentName} telah dipadam.`, true);
+            };
         }
 
         function renderDskpView() {
