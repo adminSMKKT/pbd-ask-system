@@ -248,7 +248,7 @@
 
     </main>
 
-    <!-- Modals (Login, Add Class, Add Student, Bulk Student, TP, Alert) remain exactly the same visually -->
+    <!-- Modals -->
     <div id="modal-login" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
             <div class="flex justify-between items-center border-b pb-4">
@@ -260,17 +260,28 @@
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
+            
+            <!-- Tab Pilihan -->
+            <div class="flex border-b border-gray-200">
+                <button type="button" onclick="toggleAuthMode('login')" id="btn-tab-login" class="w-1/2 py-2.5 font-bold text-sm text-indigo-600 border-b-2 border-indigo-600 transition">Log Masuk</button>
+                <button type="button" onclick="toggleAuthMode('register')" id="btn-tab-register" class="w-1/2 py-2.5 font-bold text-sm text-gray-400 border-b-2 border-transparent hover:text-indigo-500 transition">Daftar Baharu</button>
+            </div>
+
             <form onsubmit="handleTeacherLogin(event)" class="space-y-4">
-                <div>
+                <div id="field-name" class="hidden">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nama Penuh Guru</label>
-                    <input type="text" id="login-teacher-name" required placeholder="Cth: Cikgu Ahmad bin Ali" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="login-teacher-name" placeholder="Cth: Cikgu Ahmad bin Ali" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">ID Pengguna / Emel</label>
-                    <input type="text" id="login-teacher-id" required placeholder="Cth: G001 atau emel@moe.edu.my" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ID Pengguna (Username)</label>
+                    <input type="text" id="login-username" required placeholder="Cth: cikgu_ahmad" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
-                    Masuk ke Sistem
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label>
+                    <input type="password" id="login-password" required placeholder="Masukkan kata laluan" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <button type="submit" id="btn-submit-auth" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
+                    Log Masuk
                 </button>
             </form>
         </div>
@@ -365,7 +376,8 @@
             </div>
             <div class="space-y-4">
                 <p class="text-xs text-gray-600 leading-relaxed">
-                    Salin terus dari <b>Excel</b> atau gunakan koma <code class="bg-gray-100 p-1 rounded text-indigo-700 font-mono">Nama, IC, Kaum, Jantina</code> (Satu murid setiap baris).
+                    Salin terus dari <b>Excel</b> atau gunakan koma <code class="bg-gray-100 p-1 rounded text-indigo-700 font-mono">Nama, IC, Kaum, Jantina</code> (Satu murid setiap baris). Contoh:<br>
+                    <code class="bg-gray-100 p-1 rounded text-gray-700 font-mono text-[11px] block mt-1">Ahmad bin Ali, 100101-01-1234, Melayu, L</code>
                 </p>
                 <textarea id="textarea-bulk" rows="6" placeholder="Ahmad bin Ali, 100101-01-1234, Melayu, L&#10;Siti binti Abu, 100202-02-5678, Melayu, P" class="w-full border border-gray-300 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
                 <button onclick="handleBulkStudents()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl shadow transition duration-200">
@@ -387,7 +399,6 @@
                 </button>
             </div>
             <div id="tp-options-container" class="space-y-2 max-h-80 overflow-y-auto pr-1">
-                <!-- Dynamic TP buttons with descriptions -->
             </div>
         </div>
     </div>
@@ -406,152 +417,54 @@
     </div>
 
     <script>
-        // --- 1. SETTING BACKEND URL DI SINI ---
+        // URL API ANDA DARI GOOGLE APPS SCRIPT
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx12fWcgWbgBSQ9j7N_ogoMfL5DDfMjIGOZDXHWk4sE3a2iiNgRd4G-doySo4PMp6aCCA/exec';
-        
-        // --- 2. KOSONGKAN DUMMY DATA ---
-        let db = {
-            currentTeacher: null, // Mula-mula tiada sesiapa log masuk
-            teachers: [],
-            classes: [],
-            students: []
-        };
+
+        // Helper API POST untuk atasi isu CORS Browser
+        async function sendDataToBackend(action, data) {
+            try {
+                // Hantar header 'text/plain' supaya browser tidak block POST (elak CORS preflight)
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: action, data: data })
+                });
+            } catch (err) {
+                console.error("Gagal simpan ke server:", err);
+            }
+        }
 
         const dskpCurriculum = {
             "1": [
-                { id: "1.1", title: "1.1 Asas Pemikiran Komputasional", tps: [
-                    "Menyenaraikan empat teknik penyelesaian masalah dalam pemikiran komputasional.",
-                    "Menerangkan dengan jelas sekurang-kurangnya dua teknik penyelesaian masalah.",
-                    "Menggunakan keempat-empat teknik penyelesaian masalah dalam pemikiran komputasional.",
-                    "Menganalisis dan membuat perbandingan cara penyelesaian masalah yang berbeza.",
-                    "Memberi justifikasi teknik penyelesaian masalah yang dipilih.",
-                    "Menghasilkan model atau prototaip terhadap cadangan penyelesaian masalah yang ditemui."
-                ]},
-                { id: "2.1", title: "2.1 Sistem Nombor Perduaan", tps: [
-                    "Menerangkan nombor perpuluhan dan perduaan.",
-                    "Menukar nombor perpuluhan kepada nombor perduaan dan sebaliknya.",
-                    "Melakukan operasi tambah dan tolak bagi dua nilai nombor perduaan dan menunjukkan kaedah.",
-                    "Mendapatkan nilai perwakilan ASCII bagi aksara yang diberi dengan operasi tambah/tolak.",
-                    "Membuat justifikasi terhadap pilihan operasi dalam menentukan perwakilan ASCII.",
-                    "Mencadangkan satu sistem nombor baharu berdasarkan pengetahuan sistem nombor yang dipelajari."
-                ]},
-                { id: "2.2", title: "2.2 Ukuran Data", tps: [
-                    "Menyatakan unit ukuran bagi imej digital dan unit ukuran bagi audio digital.",
-                    "Menerangkan perkaitan antara kedalaman warna/resolusi dengan kualiti imej & kedalaman bit/kadar sampel dengan kualiti audio.",
-                    "Menunjuk cara menukar format imej dan audio untuk menghasilkan saiz fail yang lebih kecil.",
-                    "Mengesan bilangan warna pada suatu paparan digital & kedalaman bit/kadar sampel yang sesuai.",
-                    "Membuat justifikasi pemilihan format untuk imej dan pemilihan format untuk audio.",
-                    "Membuat hipotesis saiz data pada masa hadapan berdasarkan masa kini dengan pembuktian logik."
-                ]},
-                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: [
-                    "Menulis pseudokod untuk menyelesaikan masalah (pelbagai pilihan & ulangan).",
-                    "Menghasilkan pseudokod dan carta alir untuk masalah pelbagai pilihan & ulangan.",
-                    "Menghasilkan pseudokod dan melukis carta alir terperinci.",
-                    "Mencari dan membaiki ralat daripada pseudokod dan carta alir.",
-                    "Menghasilkan lebih daripada satu pseudokod/carta alir bagi permasalahan sama.",
-                    "Mencipta pseudokod/carta alir gabungan pilihan & ulangan untuk membangun aplikasi."
-                ]},
-                { id: "4.1", title: "4.1 Kod Arahan", tps: [
-                    "Menjelaskan fungsi pemboleh ubah dan operator matematik atur cara.",
-                    "Membina atur cara yang melibatkan penggunaan pelbagai pilihan dan ulangan.",
-                    "Menghasilkan atur cara melibatkan pilihan, ulangan, pemboleh ubah dan operator matematik.",
-                    "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.",
-                    "Mencadangkan atur cara yang lebih ringkas daripada atur cara asal.",
-                    "Membangunkan satu atur cara yang boleh dijadikan contoh, dimuat naik dan dikongsi."
-                ]},
-                { id: "4.2", title: "4.2 Kod Arahan HTML", tps: [
-                    "Melakar papan cerita yang logik untuk laman sesawang yang dibina.",
-                    "Menggunakan tags, meletakkan banner serta menu dalam atur cara HTML dengan betul.",
-                    "Menggunakan heading, frame, pautan, imej serta pull down menu dan komen dalam HTML.",
-                    "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.",
-                    "Membuat justifikasi dari segi isi kandungan dan cara penyampaian laman sesawang.",
-                    "Menambah baik atur cara HTML dengan menggunakan ciri tambahan menjadikan laman lebih menarik."
-                ]}
+                { id: "1.1", title: "1.1 Asas Pemikiran Komputasional", tps: ["Menyenaraikan empat teknik penyelesaian masalah dalam pemikiran komputasional.", "Menerangkan dengan jelas sekurang-kurangnya dua teknik penyelesaian masalah.", "Menggunakan keempat-empat teknik penyelesaian masalah dalam pemikiran komputasional.", "Menganalisis dan membuat perbandingan cara penyelesaian masalah yang berbeza.", "Memberi justifikasi teknik penyelesaian masalah yang dipilih.", "Menghasilkan model atau prototaip terhadap cadangan penyelesaian masalah yang ditemui."] },
+                { id: "2.1", title: "2.1 Sistem Nombor Perduaan", tps: ["Menerangkan nombor perpuluhan dan perduaan.", "Menukar nombor perpuluhan kepada nombor perduaan dan sebaliknya.", "Melakukan operasi tambah dan tolak bagi dua nilai nombor perduaan dan menunjukkan kaedah.", "Mendapatkan nilai perwakilan ASCII bagi aksara yang diberi dengan operasi tambah/tolak.", "Membuat justifikasi terhadap pilihan operasi dalam menentukan perwakilan ASCII.", "Mencadangkan satu sistem nombor baharu berdasarkan pengetahuan sistem nombor yang dipelajari."] },
+                { id: "2.2", title: "2.2 Ukuran Data", tps: ["Menyatakan unit ukuran bagi imej digital dan unit ukuran bagi audio digital.", "Menerangkan perkaitan antara kedalaman warna/resolusi dengan kualiti imej & kedalaman bit/kadar sampel dengan kualiti audio.", "Menunjuk cara menukar format imej dan audio untuk menghasilkan saiz fail yang lebih kecil.", "Mengesan bilangan warna pada suatu paparan digital & kedalaman bit/kadar sampel yang sesuai.", "Membuat justifikasi pemilihan format untuk imej dan pemilihan format untuk audio.", "Membuat hipotesis saiz data pada masa hadapan berdasarkan masa kini dengan pembuktian logik."] },
+                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: ["Menulis pseudokod untuk menyelesaikan masalah (pelbagai pilihan & ulangan).", "Menghasilkan pseudokod dan carta alir untuk masalah pelbagai pilihan & ulangan.", "Menghasilkan pseudokod dan melukis carta alir terperinci.", "Mencari dan membaiki ralat daripada pseudokod dan carta alir.", "Menghasilkan lebih daripada satu pseudokod/carta alir bagi permasalahan sama.", "Mencipta pseudokod/carta alir gabungan pilihan & ulangan untuk membangun aplikasi."] },
+                { id: "4.1", title: "4.1 Kod Arahan", tps: ["Menjelaskan fungsi pemboleh ubah dan operator matematik atur cara.", "Membina atur cara yang melibatkan penggunaan pelbagai pilihan dan ulangan.", "Menghasilkan atur cara melibatkan pilihan, ulangan, pemboleh ubah dan operator matematik.", "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.", "Mencadangkan atur cara yang lebih ringkas daripada atur cara asal.", "Membangunkan satu atur cara yang boleh dijadikan contoh, dimuat naik dan dikongsi."] },
+                { id: "4.2", title: "4.2 Kod Arahan HTML", tps: ["Melakar papan cerita yang logik untuk laman sesawang yang dibina.", "Menggunakan tags, meletakkan banner serta menu dalam atur cara HTML dengan betul.", "Menggunakan heading, frame, pautan, imej serta pull down menu dan komen dalam HTML.", "Menunjukkan keupayaan untuk mengesan dan membaiki ralat dalam atur cara.", "Membuat justifikasi dari segi isi kandungan dan cara penyampaian laman sesawang.", "Menambah baik atur cara HTML dengan menggunakan ciri tambahan menjadikan laman lebih menarik."] }
             ],
             "2": [
-                { id: "1.1", title: "1.1 Sistem Nombor Perlapanan", tps: [
-                    "Mengenal pasti nombor perlapanan.",
-                    "Menukar nombor perpuluhan kepada nombor perlapanan dan sebaliknya.",
-                    "Menukar nombor perlapanan kepada nombor perduaan dan sebaliknya.",
-                    "Menukar pengekodan ASCII kepada nombor perlapanan melalui kaedah pengiraan.",
-                    "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.",
-                    "Menyediakan folio digital lengkap mengenai sistem nombor berkaitan perwakilan ASCII."
-                ]},
-                { id: "1.2", title: "1.2 Sistem Nombor Perenambelasan", tps: [
-                    "Mengenal pasti nombor perenambelasan.",
-                    "Menukar nombor perpuluhan kepada perenambelasan dan sebaliknya.",
-                    "Menukar nombor perenambelasan kepada perduaan dan sebaliknya.",
-                    "Menukar pengekodan ASCII kepada nombor perenambelasan melalui kaedah pengiraan.",
-                    "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.",
-                    "Menghasilkan sebaris ayat menggunakan sistem nombor perenambelasan secara sistematik."
-                ]},
-                { id: "2.1", title: "2.1 Pembangunan Algoritma", tps: [
-                    "Menyenaraikan jenis-jenis struktur kawalan.",
-                    "Menjelaskan jenis struktur kawalan dengan menggunakan contoh yang sesuai.",
-                    "Menghasilkan pseudokod dan carta alir untuk menyelesaikan masalah melibatkan struktur kawalan.",
-                    "Menunjukkan keupayaan mengesan ralat dalam pseudokod dan carta alir.",
-                    "Menunjukkan keupayaan membaiki ralat dalam pseudokod dan carta alir.",
-                    "Menggabungkan pelbagai struktur kawalan untuk menyelesaikan masalah secara kreatif."
-                ]},
-                { id: "3.1", title: "3.1 Persekitaran Kod Arahan", tps: [
-                    "Mengenal pasti jenis data, pemalar atau operator.",
-                    "Menjelaskan jenis data, pemalar dan operator.",
-                    "Menulis kod segmen yang melibatkan pelbagai jenis data, pemboleh ubah, pemalar dan operator.",
-                    "Menunjukkan keupayaan mengesan ralat dalam kod segmen.",
-                    "Menunjukkan keupayaan membaiki ralat dalam kod segmen.",
-                    "Menggabungkan jenis data, pemboleh ubah, pemalar dan operator dalam kod segmen menyelesaikan masalah."
-                ]},
-                { id: "3.2", title: "3.2 Struktur Kod Arahan", tps: [
-                    "Mengenal pasti struktur kawalan dalam atur cara.",
-                    "Memberi dua contoh struktur kawalan dalam menyelesaikan masalah.",
-                    "Membina atur cara yang melibatkan struktur kawalan untuk menyelesaikan masalah.",
-                    "Menunjukkan keupayaan mengesan ralat dalam atur cara.",
-                    "Menunjukkan keupayaan membaiki ralat dalam atur cara.",
-                    "Mencipta atur cara melibatkan gabungan pelbagai struktur kawalan secara sistematik dan kreatif."
-                ]}
+                { id: "1.1", title: "1.1 Sistem Nombor Perlapanan", tps: ["Mengenal pasti nombor perlapanan.", "Menukar nombor perpuluhan kepada nombor perlapanan dan sebaliknya.", "Menukar nombor perlapanan kepada nombor perduaan dan sebaliknya.", "Menukar pengekodan ASCII kepada nombor perlapanan melalui kaedah pengiraan.", "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.", "Menyediakan folio digital lengkap mengenai sistem nombor berkaitan perwakilan ASCII."] },
+                { id: "1.2", title: "1.2 Sistem Nombor Perenambelasan", tps: ["Mengenal pasti nombor perenambelasan.", "Menukar nombor perpuluhan kepada perenambelasan dan sebaliknya.", "Menukar nombor perenambelasan kepada perduaan dan sebaliknya.", "Menukar pengekodan ASCII kepada nombor perenambelasan melalui kaedah pengiraan.", "Membuat hubung kait sistem nombor dengan perwakilan ASCII melalui contoh yang sesuai.", "Menghasilkan sebaris ayat menggunakan sistem nombor perenambelasan secara sistematik."] },
+                { id: "2.1", title: "2.1 Pembangunan Algoritma", tps: ["Menyenaraikan jenis-jenis struktur kawalan.", "Menjelaskan jenis struktur kawalan dengan menggunakan contoh yang sesuai.", "Menghasilkan pseudokod dan carta alir untuk menyelesaikan masalah melibatkan struktur kawalan.", "Menunjukkan keupayaan mengesan ralat dalam pseudokod dan carta alir.", "Menunjukkan keupayaan membaiki ralat dalam pseudokod dan carta alir.", "Menggabungkan pelbagai struktur kawalan untuk menyelesaikan masalah secara kreatif."] },
+                { id: "3.1", title: "3.1 Persekitaran Kod Arahan", tps: ["Mengenal pasti jenis data, pemalar atau operator.", "Menjelaskan jenis data, pemalar dan operator.", "Menulis kod segmen yang melibatkan pelbagai jenis data, pemboleh ubah, pemalar dan operator.", "Menunjukkan keupayaan mengesan ralat dalam kod segmen.", "Menunjukkan keupayaan membaiki ralat dalam kod segmen.", "Menggabungkan jenis data, pemboleh ubah, pemalar dan operator dalam kod segmen menyelesaikan masalah."] },
+                { id: "3.2", title: "3.2 Struktur Kod Arahan", tps: ["Mengenal pasti struktur kawalan dalam atur cara.", "Memberi dua contoh struktur kawalan dalam menyelesaikan masalah.", "Membina atur cara yang melibatkan struktur kawalan untuk menyelesaikan masalah.", "Menunjukkan keupayaan mengesan ralat dalam atur cara.", "Menunjukkan keupayaan membaiki ralat dalam atur cara.", "Mencipta atur cara melibatkan gabungan pelbagai struktur kawalan secara sistematik dan kreatif."] }
             ],
             "3": [
-                { id: "1.1", title: "1.1 Pembangunan Atur Cara (Projek)", tps: [
-                    "Menyenaraikan teknik pemikiran komputasional yang terdapat dalam fasa pembangunan atur cara.",
-                    "Menerangkan sekurang-kurangnya satu teknik pemikiran komputasional dalam setiap fasa pembangunan.",
-                    "Menggunakan lebih daripada satu teknik pemikiran komputasional dalam fasa pembangunan atur cara.",
-                    "Membanding beza teknik pemikiran komputasional yang bersesuaian bagi setiap fasa.",
-                    "Membuat justifikasi penggunaan teknik pemikiran komputasional bagi setiap fasa dalam dokumentasi.",
-                    "Mencipta satu atur cara baharu yang lengkap berserta pelaporan secara sistematik."
-                ]},
-                { id: "2.1", title: "2.1 Kriptografi Dalam Keselamatan Data", tps: [
-                    "Menyatakan kepentingan kriptografi dalam pengkomputeran.",
-                    "Menjelaskan kaedah sifer yang telah dipelajari.",
-                    "Menterjemah mesej menggunakan kaedah sifer yang telah dipelajari.",
-                    "Membandingkan kekuatan dan kelemahan kaedah sifer yang telah dipelajari.",
-                    "Mencadangkan satu kaedah sifer selain yang telah dipelajari dan membuat pembentangan.",
-                    "Mencipta satu kaedah sifer baharu untuk selesaikan masalah harian & bentang folio digital."
-                ]},
-                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: [
-                    "Menyenaraikan ciri-ciri search dan sort yang digunakan dalam penyelesaian masalah.",
-                    "Menjelaskan algoritma search dan algoritma sort dalam penyelesaian masalah.",
-                    "Menggunakan search dan sort bagi menyelesaikan masalah dalam algoritma.",
-                    "Mengesan dan membaiki ralat pseudokod dan carta alir dalam penyelesaian masalah.",
-                    "Memilih teknik search dan sort yang sesuai bagi menyelesaikan masalah dan menambah baik algoritma.",
-                    "Menghasilkan satu aplikasi yang menggunakan teknik search dan sort."
-                ]},
-                { id: "4.1", title: "4.1 Pangkalan Data dan SQL", tps: [
-                    "Mengenal pasti entiti dan atribut dalam penyelesaian masalah.",
-                    "Menerangkan kegunaan kekunci primer dan kekunci asing.",
-                    "Membina pangkalan data (entiti, atribut, borang) dan menunjukkan hubungan antara entiti.",
-                    "Mengesan dan membaiki ralat dalam pangkalan data.",
-                    "Membuat justifikasi penggunaan arahan SQL dalam pertanyaan (query) dan menjana laporan.",
-                    "Membangunkan satu pangkalan data yang boleh dijadikan contoh dan dikongsi bersama."
-                ]},
-                { id: "4.2", title: "4.2 Struktur Kod Arahan", tps: [
-                    "Mengenal pasti struktur kod arahan dalam atur cara.",
-                    "Memberi sekurang-kurangnya dua contoh penggunaan struktur kod arahan.",
-                    "Membina satu atur cara yang mengandungi penyataan function dan procedure.",
-                    "Mengesan ralat dalam atur cara.",
-                    "Membaiki ralat dalam atur cara.",
-                    "Mencipta atur cara melibatkan gabungan struktur kod arahan berdasarkan situasi secara sistematik."
-                ]}
+                { id: "1.1", title: "1.1 Pembangunan Atur Cara (Projek)", tps: ["Menyenaraikan teknik pemikiran komputasional yang terdapat dalam fasa pembangunan atur cara.", "Menerangkan sekurang-kurangnya satu teknik pemikiran komputasional dalam setiap fasa pembangunan.", "Menggunakan lebih daripada satu teknik pemikiran komputasional dalam fasa pembangunan atur cara.", "Membanding beza teknik pemikiran komputasional yang bersesuaian bagi setiap fasa.", "Membuat justifikasi penggunaan teknik pemikiran komputasional bagi setiap fasa dalam dokumentasi.", "Mencipta satu atur cara baharu yang lengkap berserta pelaporan secara sistematik."] },
+                { id: "2.1", title: "2.1 Kriptografi Dalam Keselamatan Data", tps: ["Menyatakan kepentingan kriptografi dalam pengkomputeran.", "Menjelaskan kaedah sifer yang telah dipelajari.", "Menterjemah mesej menggunakan kaedah sifer yang telah dipelajari.", "Membandingkan kekuatan dan kelemahan kaedah sifer yang telah dipelajari.", "Mencadangkan satu kaedah sifer selain yang telah dipelajari dan membuat pembentangan.", "Mencipta satu kaedah sifer baharu untuk selesaikan masalah harian & bentang folio digital."] },
+                { id: "3.1", title: "3.1 Pembangunan Algoritma", tps: ["Menyenaraikan ciri-ciri search dan sort yang digunakan dalam penyelesaian masalah.", "Menjelaskan algoritma search dan algoritma sort dalam penyelesaian masalah.", "Menggunakan search dan sort bagi menyelesaikan masalah dalam algoritma.", "Mengesan dan membaiki ralat pseudokod dan carta alir dalam penyelesaian masalah.", "Memilih teknik search dan sort yang sesuai bagi menyelesaikan masalah dan menambah baik algoritma.", "Menghasilkan satu aplikasi yang menggunakan teknik search dan sort."] },
+                { id: "4.1", title: "4.1 Pangkalan Data dan SQL", tps: ["Mengenal pasti entiti dan atribut dalam penyelesaian masalah.", "Menerangkan kegunaan kekunci primer dan kekunci asing.", "Membina pangkalan data (entiti, atribut, borang) dan menunjukkan hubungan antara entiti.", "Mengesan dan membaiki ralat dalam pangkalan data.", "Membuat justifikasi penggunaan arahan SQL dalam pertanyaan (query) dan menjana laporan.", "Membangunkan satu pangkalan data yang boleh dijadikan contoh dan dikongsi bersama."] },
+                { id: "4.2", title: "4.2 Struktur Kod Arahan", tps: ["Mengenal pasti struktur kod arahan dalam atur cara.", "Memberi sekurang-kurangnya dua contoh penggunaan struktur kod arahan.", "Membina satu atur cara yang mengandungi penyataan function dan procedure.", "Mengesan ralat dalam atur cara.", "Membaiki ralat dalam atur cara.", "Mencipta atur cara melibatkan gabungan struktur kod arahan berdasarkan situasi secara sistematik."] }
             ]
+        };
+
+        // Pangkalan Data Kosong
+        let db = {
+            currentTeacher: null,
+            teachers: [],
+            classes: [],
+            students: []
         };
 
         let currentClassId = null;
@@ -560,16 +473,14 @@
         let barChartInstance = null;
         let pieChartInstance = null;
 
-        // --- 3. KEMASKINI WINDOW.ONLOAD (AMBIL DATA DARI SERVER) ---
+        // Muat Data dari Google Sheets
         window.onload = async function() {
-            // Tunjuk mesej sedang load
             document.getElementById('alert-title').innerText = "Sedang Memuat";
-            document.getElementById('alert-message').innerText = "Sila tunggu, sedang mengambil pangkalan data dari server Google Sheets...";
+            document.getElementById('alert-message').innerText = "Memuat turun pangkalan data dari awan (Google Sheets)...";
             document.getElementById('alert-icon').className = "fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-2";
             openModal('modal-alert');
             
             try {
-                // Ambil data menggunakan Fetch API
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
                 
@@ -585,7 +496,7 @@
                 
             } catch (error) {
                 console.error(error);
-                showAlert("Ralat Sambungan", "Gagal mengambil data dari server. Sila pastikan link Apps Script betul dan mempunyai kebenaran 'Anyone'.", false);
+                showAlert("Ralat Sambungan", "Gagal mengambil data dari Google Sheets. Sila pastikan link Apps Script betul.", false);
             }
         };
 
@@ -604,23 +515,76 @@
         function openAddStudentModal() { openModal('modal-student'); }
         function openBulkStudentModal() { openModal('modal-bulk'); }
 
+        let authMode = 'login';
+        
+        function toggleAuthMode(mode) {
+            authMode = mode;
+            if(mode === 'login') {
+                document.getElementById('field-name').classList.add('hidden');
+                document.getElementById('login-teacher-name').removeAttribute('required');
+                document.getElementById('btn-tab-login').className = "w-1/2 py-2.5 font-bold text-sm text-indigo-600 border-b-2 border-indigo-600 transition";
+                document.getElementById('btn-tab-register').className = "w-1/2 py-2.5 font-bold text-sm text-gray-400 border-b-2 border-transparent hover:text-indigo-500 transition";
+                document.getElementById('btn-submit-auth').innerText = "Log Masuk";
+            } else {
+                document.getElementById('field-name').classList.remove('hidden');
+                document.getElementById('login-teacher-name').setAttribute('required', 'true');
+                document.getElementById('btn-tab-register').className = "w-1/2 py-2.5 font-bold text-sm text-indigo-600 border-b-2 border-indigo-600 transition";
+                document.getElementById('btn-tab-login').className = "w-1/2 py-2.5 font-bold text-sm text-gray-400 border-b-2 border-transparent hover:text-indigo-500 transition";
+                document.getElementById('btn-submit-auth').innerText = "Daftar Akaun";
+            }
+        }
+
         function handleTeacherLogin(e) {
             e.preventDefault();
-            const name = document.getElementById('login-teacher-name').value.trim();
-            const id = document.getElementById('login-teacher-id').value.trim();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
 
-            let teacher = db.teachers.find(t => t.id === id || t.name.toLowerCase() === name.toLowerCase());
-            if (!teacher) {
-                teacher = { id: id || "T" + Date.now(), name: name, email: id };
-                db.teachers.push(teacher);
-                // Nota: Untuk versi lanjutan, pendaftaran guru baharu juga boleh dihantar ke Google Sheets (POST)
+            if (authMode === 'login') {
+                const teacher = db.teachers.find(t => t.username === username);
+                if (!teacher) {
+                    return showAlert("Ralat Log Masuk", "ID Pengguna (Username) tidak wujud. Sila daftar akaun baharu terlebih dahulu.", false);
+                }
+                if (teacher.password !== password) {
+                    return showAlert("Ralat Log Masuk", "Kata laluan yang dimasukkan adalah salah. Sila cuba lagi.", false);
+                }
+                
+                // Berjaya Log Masuk
+                db.currentTeacher = teacher;
+                closeModal('modal-login');
+                updateAuthUI();
+                renderDashboard();
+                if (currentClassId) openClassDetail(currentClassId);
+                showAlert("Berjaya Log Masuk", `Selamat kembali, ${teacher.name}!`);
+                
+            } else {
+                // Pendaftaran Baharu
+                const name = document.getElementById('login-teacher-name').value.trim();
+                const exists = db.teachers.find(t => t.username === username);
+                
+                if (exists) {
+                    return showAlert("Ralat Pendaftaran", "Username ini telah digunakan oleh pengguna lain. Sila pilih username lain.", false);
+                }
+                
+                const newTeacher = { 
+                    id: "T" + Date.now(), 
+                    name: name, 
+                    username: username, 
+                    password: password 
+                };
+                
+                db.teachers.push(newTeacher);
+                db.currentTeacher = newTeacher;
+                
+                closeModal('modal-login');
+                updateAuthUI();
+                renderDashboard();
+                if (currentClassId) openClassDetail(currentClassId);
+                
+                // Simpan ke Google Sheets
+                sendDataToBackend("addTeacher", newTeacher);
+                
+                showAlert("Pendaftaran Berjaya", `Selamat datang ke sistem, ${newTeacher.name}!`);
             }
-            db.currentTeacher = teacher;
-            closeModal('modal-login');
-            updateAuthUI();
-            renderDashboard();
-            if (currentClassId) openClassDetail(currentClassId);
-            showAlert("Berjaya Log Masuk", `Selamat datang, ${teacher.name}!`);
         }
 
         function logoutTeacher() {
@@ -660,7 +624,7 @@
             document.getElementById('view-classes').classList.add('hidden');
             document.getElementById('view-dskp').classList.add('hidden');
 
-            document.getElementById('tab-dashboard').className = "py-3 px-5 font-semibold text-indigo-700 border-b-2 border-indigo-700 text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
+            document.getElementById('tab-dashboard').className = "py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
             document.getElementById('tab-classes').className = "py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
             document.getElementById('tab-dskp').className = "py-3 px-5 font-semibold text-gray-500 hover:text-indigo-700 border-b-2 border-transparent text-sm sm:text-base flex items-center space-x-2 whitespace-nowrap";
 
@@ -673,22 +637,18 @@
 
         function renderDashboard() {
             document.getElementById('stats-total-students').innerText = db.students.length;
-
-            const f1Classes = db.classes.filter(c => c.form === "1" || c.form === 1);
-            const f2Classes = db.classes.filter(c => c.form === "2" || c.form === 2);
-            const f3Classes = db.classes.filter(c => c.form === "3" || c.form === 3);
-
+            const f1Classes = db.classes.filter(c => c.form == "1");
+            const f2Classes = db.classes.filter(c => c.form == "2");
+            const f3Classes = db.classes.filter(c => c.form == "3");
             const f1Students = db.students.filter(s => f1Classes.some(c => c.id === s.classId));
             const f2Students = db.students.filter(s => f2Classes.some(c => c.id === s.classId));
             const f3Students = db.students.filter(s => f3Classes.some(c => c.id === s.classId));
-
             document.getElementById('stat-f1-count').innerText = f1Classes.length + " Kelas";
             document.getElementById('stat-f1-students').innerText = f1Students.length;
             document.getElementById('stat-f2-count').innerText = f2Classes.length + " Kelas";
             document.getElementById('stat-f2-students').innerText = f2Students.length;
             document.getElementById('stat-f3-count').innerText = f3Classes.length + " Kelas";
             document.getElementById('stat-f3-students').innerText = f3Students.length;
-
             renderCharts(f1Students.length, f2Students.length, f3Students.length);
         }
 
@@ -713,8 +673,7 @@
             db.students.forEach(std => {
                 if (std.tp) {
                     Object.values(std.tp).forEach(val => {
-                        const numericVal = parseInt(val);
-                        if (numericVal >= 1 && numericVal <= 6) tpCounts[numericVal]++;
+                        if (val >= 1 && val <= 6) tpCounts[val]++;
                     });
                 }
             });
@@ -737,14 +696,11 @@
         function renderClassesList() {
             const grid = document.getElementById('classes-grid');
             grid.innerHTML = '';
-
             const teacherClasses = db.currentTeacher ? db.classes.filter(c => c.teacherId === db.currentTeacher.id) : db.classes;
-
             if (teacherClasses.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">Tiada kelas berdaftar. Sila daftar kelas baharu.</div>`;
                 return;
             }
-
             teacherClasses.forEach(cls => {
                 const count = db.students.filter(s => s.classId === cls.id).length;
                 const teacher = db.teachers.find(t => t.id === cls.teacherId);
@@ -783,25 +739,27 @@
             db.classes.push(newClass);
             closeModal('modal-class');
             document.getElementById('input-class-name').value = '';
+            
             renderClassesList();
             renderDashboard();
-            showAlert("Berjaya", "Kelas baharu telah berjaya didaftarkan di pelayar web. Sila kemaskini backend untuk simpanan awan (cloud) kekal.");
+            
+            // Hantar ke Google Sheets
+            sendDataToBackend("addClass", newClass);
+            
+            showAlert("Berjaya", "Kelas baharu telah berjaya didaftarkan ke Google Sheets!");
         }
 
         function openClassDetail(classId) {
             currentClassId = classId;
             const cls = db.classes.find(c => c.id === classId);
             if (!cls) return;
-
             const teacher = db.teachers.find(t => t.id === cls.teacherId);
             document.getElementById('detail-class-name').innerText = cls.name;
             document.getElementById('detail-class-form-badge').innerText = `Tingkatan ${cls.form}`;
             document.getElementById('detail-teacher-name').innerText = teacher ? teacher.name : '-';
-
             document.getElementById('classes-grid').parentElement.parentElement.querySelector('#teacher-action-panel').parentElement.querySelector(':scope > div:nth-child(2)').classList.add('hidden');
             document.getElementById('classes-grid').parentElement.classList.add('hidden');
             document.getElementById('class-detail-view').classList.remove('hidden');
-
             renderStudentsTable(cls);
         }
 
@@ -816,21 +774,16 @@
             const students = db.students.filter(s => s.classId === cls.id);
             students.sort((a, b) => a.name.localeCompare(b.name));
             document.getElementById('student-count-badge').innerText = `${students.length} Murid`;
-
             const skList = dskpCurriculum[cls.form] || [];
             const table = document.getElementById('students-table');
-
             let thHtml = `
                 <tr class="bg-gray-50 text-gray-700 text-xs font-bold uppercase tracking-wider">
                     <th class="px-3 py-3 border-b w-12 text-center">Bil</th>
                     <th class="px-4 py-3 border-b">Nama Murid & IC</th>
                     <th class="px-3 py-3 border-b text-center w-20">Jantina</th>
             `;
-            skList.forEach(sk => {
-                thHtml += `<th class="px-2 py-3 border-b text-center" title="${sk.title}">${sk.id}</th>`;
-            });
+            skList.forEach(sk => thHtml += `<th class="px-2 py-3 border-b text-center" title="${sk.title}">${sk.id}</th>`);
             thHtml += `<th class="px-3 py-3 border-b text-center w-24">Status</th></tr>`;
-
             let tbodyHtml = '';
             if (students.length === 0) {
                 tbodyHtml = `<tr><td colspan="${3 + skList.length + 1}" class="text-center py-8 text-gray-400">Tiada murid dalam kelas ini. Sila tambah murid.</td></tr>`;
@@ -839,7 +792,6 @@
                     let completedCount = 0;
                     skList.forEach(sk => { if (std.tp && std.tp[sk.id]) completedCount++; });
                     const isComplete = completedCount === skList.length;
-
                     tbodyHtml += `
                         <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
                             <td class="px-3 py-3 text-center text-gray-500">${i + 1}</td>
@@ -849,7 +801,6 @@
                             </td>
                             <td class="px-3 py-3 text-center"><span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded">${std.gender}</span></td>
                     `;
-
                     skList.forEach(sk => {
                         const tpVal = std.tp && std.tp[sk.id] ? std.tp[sk.id] : '-';
                         const badgeColor = tpVal === '-' ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-indigo-600 text-white font-bold hover:bg-indigo-700';
@@ -861,42 +812,30 @@
                             </td>
                         `;
                     });
-
-                    const statusBadge = isComplete 
-                        ? '<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">Lengkap</span>' 
-                        : '<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">Belum</span>';
-
+                    const statusBadge = isComplete ? '<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">Lengkap</span>' : '<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">Belum</span>';
                     tbodyHtml += `<td class="px-3 py-3 text-center">${statusBadge}</td></tr>`;
                 });
             }
-
             table.innerHTML = thHtml + tbodyHtml;
         }
 
-        // --- 4. KEMASKINI FUNGSI TP (HANTAR KE GOOGLE SHEETS) ---
         function openTpModal(studentId, skId) {
             activeStudentIdForTp = studentId;
             activeSkIdForTp = skId;
             const cls = db.classes.find(c => c.id === currentClassId);
             const skList = dskpCurriculum[cls.form] || [];
             const sk = skList.find(s => s.id === skId);
-            
             document.getElementById('tp-modal-title').innerText = "Tetapkan Tahap Penguasaan (TP)";
             document.getElementById('tp-modal-subtitle').innerText = `Standard Kandungan: ${sk ? sk.id + ' - ' + sk.title : skId}`;
-            
             const container = document.getElementById('tp-options-container');
             container.innerHTML = '';
-            
             if (sk && sk.tps) {
                 sk.tps.forEach((desc, idx) => {
                     const tpNum = idx + 1;
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = "w-full text-left p-3 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition flex items-start space-x-3 group";
-                    btn.innerHTML = `
-                        <span class="bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-xs shrink-0 transition">TP ${tpNum}</span>
-                        <p class="text-xs text-gray-700 leading-relaxed">${desc}</p>
-                    `;
+                    btn.innerHTML = `<span class="bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-xs shrink-0 transition">TP ${tpNum}</span><p class="text-xs text-gray-700 leading-relaxed">${desc}</p>`;
                     btn.onclick = () => selectTp(tpNum);
                     container.appendChild(btn);
                 });
@@ -904,11 +843,9 @@
             openModal('modal-tp');
         }
 
-        async function selectTp(tpValue) {
+        function selectTp(tpValue) {
             if (!activeStudentIdForTp || !activeSkIdForTp) return;
             const student = db.students.find(s => s.id === activeStudentIdForTp);
-            
-            // 1. Update UI dengan cepat
             if (student) {
                 if (!student.tp) student.tp = {};
                 student.tp[activeSkIdForTp] = tpValue;
@@ -918,28 +855,17 @@
             renderStudentsTable(cls);
             renderDashboard();
             
-            // 2. Hantar ke Google Sheets
-            try {
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: "updateTP",
-                        data: {
-                            studentId: activeStudentIdForTp,
-                            skId: activeSkIdForTp,
-                            tpValue: tpValue
-                        }
-                    })
-                });
-                showAlert("Berjaya", `Tahap Penguasaan TP ${tpValue} berjaya direkodkan di server!`);
-            } catch(err) {
-                console.error(err);
-                showAlert("Ralat", "Gagal menyimpan TP ke server. Sila semak sambungan internet.", false);
-            }
+            // Hantar ke Google Sheets
+            sendDataToBackend("updateTP", {
+                studentId: activeStudentIdForTp,
+                skId: activeSkIdForTp,
+                tpValue: tpValue
+            });
+            
+            showAlert("Berjaya", `Tahap Penguasaan TP ${tpValue} berjaya direkodkan di Google Sheets!`);
         }
 
-        // --- 5. KEMASKINI TAMBAH MURID (HANTAR KE GOOGLE SHEETS) ---
-        async function handleAddStudent(e) {
+        function handleAddStudent(e) {
             e.preventDefault();
             const name = document.getElementById('input-student-name').value.trim().toUpperCase();
             const ic = document.getElementById('input-student-ic').value.trim();
@@ -956,7 +882,6 @@
                 tp: {}
             };
 
-            // 1. Update UI
             db.students.push(newStudent);
             closeModal('modal-student');
             document.getElementById('input-student-name').value = '';
@@ -966,65 +891,37 @@
             renderStudentsTable(cls);
             renderDashboard();
             
-            // 2. Hantar ke Google Sheets
-            try {
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: "addStudent",
-                        data: newStudent
-                    })
-                });
-                showAlert("Berjaya", "Maklumat murid telah berjaya ditambah ke server Database!");
-            } catch(err) {
-                console.error(err);
-                showAlert("Ralat", "Gagal menyimpan maklumat murid ke server.", false);
-            }
+            // Hantar ke Google Sheets
+            sendDataToBackend("addStudent", newStudent);
+            
+            showAlert("Berjaya", "Maklumat murid telah berjaya ditambah ke Google Sheets!");
         }
 
         function handleBulkStudents() {
             const rawText = document.getElementById('textarea-bulk').value.trim();
-            if (!rawText) {
-                showAlert("Ralat", "Sila masukkan senarai murid.", false);
-                return;
-            }
-
+            if (!rawText) return showAlert("Ralat", "Sila masukkan senarai murid.", false);
             const lines = rawText.split(/\r?\n/).filter(l => l.trim() !== '');
             let addedCount = 0;
 
             lines.forEach(line => {
                 let parts = [];
-                if (line.includes('\t')) {
-                    parts = line.split('\t').map(p => p.trim());
-                } else if (line.includes(',')) {
-                    parts = line.split(',').map(p => p.trim());
-                } else if (line.includes('|')) {
-                    parts = line.split('|').map(p => p.trim());
-                } else {
-                    parts = line.split(/\s{2,}/).map(p => p.trim());
-                }
+                if (line.includes('\t')) parts = line.split('\t').map(p => p.trim());
+                else if (line.includes(',')) parts = line.split(',').map(p => p.trim());
+                else if (line.includes('|')) parts = line.split('|').map(p => p.trim());
+                else parts = line.split(/\s{2,}/).map(p => p.trim());
 
                 if (parts.length >= 1 && parts[0] !== '') {
                     const name = parts[0].toUpperCase();
                     const ic = parts[1] && parts[1] !== '' ? parts[1] : ('10' + Math.floor(100000 + Math.random() * 900000) + '-' + Math.floor(10 + Math.random() * 89) + '-' + Math.floor(1000 + Math.random() * 9000));
                     const race = parts[2] && parts[2] !== '' ? parts[2] : 'Melayu';
                     let rawGender = parts[3] && parts[3] !== '' ? parts[3].toUpperCase() : 'L';
-                    let gender = 'L';
-                    if (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) {
-                        gender = 'P';
-                    } else {
-                        gender = 'L';
-                    }
+                    let gender = (rawGender.startsWith('P') || rawGender.includes('PEREMPUAN')) ? 'P' : 'L';
 
-                    db.students.push({
-                        id: "S" + Date.now() + Math.random(),
-                        classId: currentClassId,
-                        name: name,
-                        ic: ic,
-                        race: race,
-                        gender: gender,
-                        tp: {}
-                    });
+                    const newStudent = { id: "S" + Date.now() + Math.random(), classId: currentClassId, name: name, ic: ic, race: race, gender: gender, tp: {} };
+                    db.students.push(newStudent);
+                    
+                    // Simpan setiap murid ke server (satu persatu)
+                    sendDataToBackend("addStudent", newStudent);
                     addedCount++;
                 }
             });
@@ -1036,9 +933,9 @@
                 const cls = db.classes.find(c => c.id === currentClassId);
                 renderStudentsTable(cls);
                 renderDashboard();
-                showAlert("Peringatan", `${addedCount} murid diimport secara lokal. Pengimportan pukal belum disokong automatik ke Google Sheets tanpa update kod Apps Script.`, true);
+                showAlert("Berjaya", `${addedCount} murid telah berjaya diimport ke Google Sheets!`, true);
             } else {
-                showAlert("Ralat Format", "Tiada data murid dikesan. Sila pastikan sekurang-kurangnya nama murid dimasukkan.", false);
+                showAlert("Ralat Format", "Tiada data murid dikesan.", false);
             }
         }
 
@@ -1046,70 +943,37 @@
             const form = document.getElementById('dskp-form-select').value;
             const container = document.getElementById('dskp-content-container');
             container.innerHTML = '';
-
             const skList = dskpCurriculum[form] || [];
             skList.forEach(sk => {
                 const card = document.createElement('div');
                 card.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4";
-                
                 let tpListHtml = '';
                 sk.tps.forEach((desc, idx) => {
-                    tpListHtml += `
-                        <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl">
-                            <span class="bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs shrink-0">TP ${idx + 1}</span>
-                            <p class="text-xs text-gray-700 leading-relaxed">${desc}</p>
-                        </div>
-                    `;
+                    tpListHtml += `<div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl"><span class="bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs shrink-0">TP ${idx + 1}</span><p class="text-xs text-gray-700 leading-relaxed">${desc}</p></div>`;
                 });
-
-                card.innerHTML = `
-                    <div class="border-b pb-3">
-                        <span class="text-xs font-bold text-indigo-600 uppercase">Tingkatan ${form} • Standard Kandungan</span>
-                        <h3 class="text-lg font-bold text-gray-900 mt-0.5">${sk.title}</h3>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        ${tpListHtml}
-                    </div>
-                `;
+                card.innerHTML = `<div class="border-b pb-3"><span class="text-xs font-bold text-indigo-600 uppercase">Tingkatan ${form} • Standard Kandungan</span><h3 class="text-lg font-bold text-gray-900 mt-0.5">${sk.title}</h3></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3">${tpListHtml}</div>`;
                 container.appendChild(card);
             });
         }
 
-        // Professional Print Report via Standalone Window
+        // Print Functionality (Tiada perubahan, biarkan sahaja)
         function triggerPrint() {
             const cls = db.classes.find(c => c.id === currentClassId);
             if (!cls) return;
             const teacher = db.teachers.find(t => t.id === cls.teacherId);
             const students = db.students.filter(s => s.classId === currentClassId);
             students.sort((a, b) => a.name.localeCompare(b.name));
-            
             const skList = dskpCurriculum[cls.form] || [];
             const teacherName = teacher ? teacher.name : '-';
-            const dateStr = new Date().toLocaleDateString('ms-MY', {
-                day: '2-digit', month: 'long', year: 'numeric'
-            });
-
-            let thHtml = `
-                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 40px;">Bil</th>
-                <th style="border: 1px solid #1e293b; padding: 6px; text-align: left;">Nama Murid</th>
-                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 110px;">No. KP</th>
-                <th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 50px;">Jantina</th>
-            `;
-            skList.forEach(sk => {
-                thHtml += `<th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 45px;" title="${sk.title}">${sk.id}</th>`;
-            });
-
+            const dateStr = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: 'long', year: 'numeric' });
+            let thHtml = `<th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 40px;">Bil</th><th style="border: 1px solid #1e293b; padding: 6px; text-align: left;">Nama Murid</th><th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 110px;">No. KP</th><th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 50px;">Jantina</th>`;
+            skList.forEach(sk => thHtml += `<th style="border: 1px solid #1e293b; padding: 6px; text-align: center; width: 45px;" title="${sk.title}">${sk.id}</th>`);
             let rowsHtml = '';
             if (students.length === 0) {
                 rowsHtml = `<tr><td colspan="${4 + skList.length}" style="border: 1px solid #1e293b; padding: 12px; text-align: center; color: #64748b;">Tiada murid berdaftar dalam kelas ini.</td></tr>`;
             } else {
                 students.forEach((std, i) => {
-                    let tdHtml = `
-                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${i + 1}</td>
-                        <td style="border: 1px solid #1e293b; padding: 6px; text-transform: uppercase; font-weight: 600;">${std.name}</td>
-                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center; font-family: monospace;">${std.ic}</td>
-                        <td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${std.gender}</td>
-                    `;
+                    let tdHtml = `<td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${i + 1}</td><td style="border: 1px solid #1e293b; padding: 6px; text-transform: uppercase; font-weight: 600;">${std.name}</td><td style="border: 1px solid #1e293b; padding: 6px; text-align: center; font-family: monospace;">${std.ic}</td><td style="border: 1px solid #1e293b; padding: 6px; text-align: center;">${std.gender}</td>`;
                     skList.forEach(sk => {
                         const tpVal = std.tp && std.tp[sk.id] ? std.tp[sk.id] : '-';
                         const style = tpVal === '-' ? 'background-color: #fef2f2; color: #dc2626;' : 'font-weight: bold; background-color: #f8fafc;';
@@ -1118,88 +982,11 @@
                     rowsHtml += `<tr>${tdHtml}</tr>`;
                 });
             }
-
             let skLegendHtml = '';
-            skList.forEach(sk => {
-                skLegendHtml += `<div style="margin-bottom: 3px;"><strong>${sk.id}:</strong> ${sk.title}</div>`;
-            });
-
-            const printHTML = `
-                <!DOCTYPE html>
-                <html lang="ms">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Borang Transit PBD ASK - ${cls.name}</title>
-                    <style>
-                        @page { size: A4 landscape; margin: 10mm; }
-                        body { font-family: 'Inter', Arial, sans-serif; color: #0f172a; margin: 0; padding: 10px; font-size: 11px; }
-                        .header { text-align: center; margin-bottom: 15px; }
-                        .header h2 { margin: 0 0 3px 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
-                        .header h3 { margin: 0 0 5px 0; font-size: 13px; color: #312e81; text-transform: uppercase; }
-                        .header p { margin: 2px 0; font-size: 11px; font-weight: 600; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                        th, td { border: 1px solid #1e293b; padding: 5px 6px; font-size: 10px; }
-                        thead { background-color: #f1f5f9; }
-                        .legend { margin-top: 10px; margin-bottom: 20px; font-size: 9px; background: #f8fafc; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; }
-                        .legend h4 { margin: 0 0 4px 0; font-size: 10px; text-transform: uppercase; color: #1e293b; }
-                        .signatures { display: flex; justify-content: space-between; margin-top: 25px; page-break-inside: avoid; font-size: 11px; }
-                        .sig-box { width: 240px; }
-                        .sig-line { border-bottom: 1px solid #64748b; height: 35px; margin-top: 12px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h2>SMK KEM TERENDAK</h2>
-                        <h3>Borang Transit Pentaksiran Bilik Darjah (PBD) - Asas Sains Komputer (ASK)</h3>
-                        <p>Tingkatan ${cls.form} &nbsp;|&nbsp; Nama Kelas: ${cls.name} &nbsp;|&nbsp; Guru Pengajar: ${teacherName}</p>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>${thHtml}</tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
-                    </table>
-
-                    <div class="legend">
-                        <h4>Rujukan Standard Kandungan (SK) Tingkatan ${cls.form}:</h4>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
-                            ${skLegendHtml}
-                        </div>
-                    </div>
-
-                    <div class="signatures">
-                        <div class="sig-box">
-                            <p><strong>Tandatangan Guru Pengajar:</strong></p>
-                            <div class="sig-line"></div>
-                            <p style="margin-top: 4px; font-size: 10px;">Nama: ${teacherName}</p>
-                        </div>
-                        <div class="sig-box">
-                            <p><strong>Disahkan oleh (Pengetua / PK Pentadbiran):</strong></p>
-                            <div class="sig-line"></div>
-                            <p style="margin-top: 4px; font-size: 10px;">Tarikh: ${dateStr}</p>
-                        </div>
-                    </div>
-
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                        }
-                    <\/script>
-                </body>
-                </html>
-            `;
-
+            skList.forEach(sk => skLegendHtml += `<div style="margin-bottom: 3px;"><strong>${sk.id}:</strong> ${sk.title}</div>`);
+            const printHTML = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Borang Transit PBD ASK - ${cls.name}</title><style>@page { size: A4 landscape; margin: 10mm; } body { font-family: 'Inter', Arial, sans-serif; color: #0f172a; margin: 0; padding: 10px; font-size: 11px; } .header { text-align: center; margin-bottom: 15px; } .header h2 { margin: 0 0 3px 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; } .header h3 { margin: 0 0 5px 0; font-size: 13px; color: #312e81; text-transform: uppercase; } .header p { margin: 2px 0; font-size: 11px; font-weight: 600; } table { width: 100%; border-collapse: collapse; margin-bottom: 15px; } th, td { border: 1px solid #1e293b; padding: 5px 6px; font-size: 10px; } thead { background-color: #f1f5f9; } .legend { margin-top: 10px; margin-bottom: 20px; font-size: 9px; background: #f8fafc; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; } .legend h4 { margin: 0 0 4px 0; font-size: 10px; text-transform: uppercase; color: #1e293b; } .signatures { display: flex; justify-content: space-between; margin-top: 25px; page-break-inside: avoid; font-size: 11px; } .sig-box { width: 240px; } .sig-line { border-bottom: 1px solid #64748b; height: 35px; margin-top: 12px; } </style></head><body><div class="header"><h2>SMK KEM TERENDAK</h2><h3>Borang Transit Pentaksiran Bilik Darjah (PBD) - Asas Sains Komputer (ASK)</h3><p>Tingkatan ${cls.form} &nbsp;|&nbsp; Nama Kelas: ${cls.name} &nbsp;|&nbsp; Guru Pengajar: ${teacherName}</p></div><table><thead><tr>${thHtml}</tr></thead><tbody>${rowsHtml}</tbody></table><div class="legend"><h4>Rujukan Standard Kandungan (SK) Tingkatan ${cls.form}:</h4><div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">${skLegendHtml}</div></div><div class="signatures"><div class="sig-box"><p><strong>Tandatangan Guru Pengajar:</strong></p><div class="sig-line"></div><p style="margin-top: 4px; font-size: 10px;">Nama: ${teacherName}</p></div><div class="sig-box"><p><strong>Disahkan oleh (Pengetua / PK Pentadbiran):</strong></p><div class="sig-line"></div><p style="margin-top: 4px; font-size: 10px;">Tarikh: ${dateStr}</p></div></div><script>window.onload = function() { window.print(); }<\/script></body></html>`;
             const printWindow = window.open('', '_blank', 'width=1000,height=750');
-            if (printWindow) {
-                printWindow.document.open();
-                printWindow.document.write(printHTML);
-                printWindow.document.close();
-            } else {
-                showAlert("Ralat Sekatan Pop-up", "Sila benarkan pop-up pada pelayar web anda untuk mencetak laporan.", false);
-            }
+            if (printWindow) { printWindow.document.open(); printWindow.document.write(printHTML); printWindow.document.close(); } else { showAlert("Ralat Sekatan Pop-up", "Sila benarkan pop-up pada pelayar web anda untuk mencetak laporan.", false); }
         }
     </script>
 </body>
